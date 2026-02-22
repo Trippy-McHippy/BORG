@@ -1,0 +1,3007 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>BORG Inbox — Build 0006</title>
+  <style>
+    :root{
+      --accent:#2563eb;
+      --accent2:#7c3aed;
+      --page-bg:#f3f4f6;
+
+      --border: rgba(15,23,42,0.14);
+      --text:#0f172a;
+      --muted: rgba(15,23,42,0.65);
+      --ink:#0f172a;
+
+      --shadow-soft: 0 10px 22px rgba(2, 6, 23, 0.10);
+      --shadow: 0 14px 34px rgba(2, 6, 23, 0.14);
+
+      --radius: 12px;
+      --topbar-height: 56px;
+
+      --scroll-thumb: rgba(15,23,42,0.35);
+      --scroll-thumb-hover: rgba(15,23,42,0.50);
+
+      --input-bg: rgba(255,255,255,0.70);
+      --input-fg: #0f172a;
+      --input-border: rgba(15,23,42,0.18);
+
+      --bubble-font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      --bubble-font-size: 14px;
+
+      --bubble-radius: 16px;
+      --bubble-shadow: 0 12px 30px rgba(2,6,23,0.14);
+      --bubble-border: 1px solid rgba(15,23,42,0.12);
+      --bubble-hover-shadow: 0 18px 38px rgba(2,6,23,0.18);
+      --bubble-hover-border: 1px solid rgba(15,23,42,0.18);
+      --bubble-backdrop: none;
+      --bubble-glow: none;
+
+      --conn-color: rgba(15,23,42,0.35);
+      --grid-color: rgba(15,23,42,0.06);
+
+      --lasso: rgba(37,99,235,0.12);
+      --lasso-border: rgba(37,99,235,0.55);
+    }
+
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: var(--bubble-font);
+      color: var(--text);
+      background: var(--page-bg);
+      overflow:hidden;
+    }
+
+    *{ scrollbar-color: var(--scroll-thumb) var(--page-bg); scrollbar-width: thin; }
+    *::-webkit-scrollbar{ width: 10px; height: 10px; }
+    *::-webkit-scrollbar-track{ background: var(--page-bg); }
+    *::-webkit-scrollbar-thumb{
+      background: var(--scroll-thumb);
+      border-radius: 999px;
+      border: 2px solid var(--page-bg);
+    }
+    *::-webkit-scrollbar-thumb:hover{ background: var(--scroll-thumb-hover); }
+
+    .panel{
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      background: color-mix(in srgb, var(--page-bg) 92%, white 8%);
+      box-shadow: var(--shadow-soft);
+      overflow:hidden;
+      min-height:0;
+    }
+
+    /* Top bar */
+    #topBar{
+      position: fixed;
+      top:0; left:0; right:0;
+      min-height: var(--topbar-height);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      background: color-mix(in srgb, var(--page-bg) 92%, white 8%);
+      box-shadow: 0 8px 24px rgba(2,6,23,0.10);
+      z-index: 60;
+    }
+    #topBarLeft, #topBarRight{ display:flex; align-items:center; gap:8px; min-width:0; }
+    #topMeta{
+      display:flex; align-items:center; gap:8px; min-width:0;
+      color: var(--muted);
+      font-weight: 900;
+      font-size: 12px;
+      letter-spacing: 0.02em;
+      user-select:none;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    #appTitle{
+      font-family: "Trebuchet MS", "Arial Black", Impact, system-ui, sans-serif;
+      font-size: 16px;
+      font-weight: 1000;
+      letter-spacing: 0.06em;
+      color: var(--ink);
+      text-shadow: 0 1px 0 rgba(255,255,255,0.4), 0 3px 10px rgba(79,70,229,0.25);
+    }
+    #topMeta code{
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 11px;
+      padding: 1px 6px;
+      border: 1px solid rgba(15,23,42,0.12);
+      border-radius: 999px;
+      background: rgba(255,255,255,0.45);
+      color: inherit;
+    }
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:2px 8px;
+      border-radius:999px;
+      font-size:11px;
+      font-weight:900;
+      border: 1px solid rgba(15,23,42,0.14);
+      background: rgba(255,255,255,0.45);
+      color: var(--muted);
+      white-space:nowrap;
+    }
+    .badge.unsaved{
+      background: rgba(245,158,11,0.18);
+      border-color: rgba(245,158,11,0.35);
+      color: rgba(180,83,9,0.95);
+    }
+
+    button{
+      border:none;
+      cursor:pointer;
+      font-weight: 850;
+      letter-spacing: 0.01em;
+      color:white;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      box-shadow: 0 10px 18px rgba(79,70,229,0.18);
+      transition: transform .12s ease, filter .16s ease;
+    }
+    button:hover{ filter: brightness(1.04); }
+    button:active{ transform: translateY(1px) scale(0.98); }
+    button.secondary{
+      background: linear-gradient(135deg, rgba(30,41,59,0.96), rgba(51,65,85,0.96));
+      box-shadow: 0 8px 16px rgba(2,6,23,0.18);
+    }
+    button:disabled{ opacity:0.45; cursor:not-allowed; filter:none; }
+
+    .iconBtn{
+      width:38px; height:34px;
+      padding:0;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border-radius: 12px;
+    }
+    .iconBtn svg{ width:18px; height:18px; fill:#fff; }
+    .iconBtn.success{ background: linear-gradient(135deg, #059669, #16a34a); box-shadow: 0 10px 20px rgba(5,150,105,0.26); }
+    .iconBtn.warn{ background: linear-gradient(135deg, #d97706, #f59e0b); box-shadow: 0 10px 20px rgba(217,119,6,0.26); }
+    .iconBtn.info{ background: linear-gradient(135deg, #0f766e, #0ea5a4); box-shadow: 0 10px 20px rgba(14,116,110,0.24); }
+    .iconBtn.tool{ background: linear-gradient(135deg, rgba(15,23,42,0.90), rgba(51,65,85,0.90)); box-shadow: 0 10px 20px rgba(2,6,23,0.22); }
+    .iconBtn.tool.active{ background: linear-gradient(135deg, #2563eb, #7c3aed); }
+
+    /* Layout */
+    #layout{
+      margin-top: var(--topbar-height);
+      height: calc(100vh - var(--topbar-height));
+      display:flex;
+      gap:10px;
+      width:100%;
+      padding:10px;
+      background: var(--page-bg);
+    }
+    #leftPanel{ width: 392px; display:flex; flex-direction:column; }
+    #leftScroll{ padding:10px; overflow:auto; min-height:0; flex:1; }
+    #center{ flex:1; display:flex; flex-direction:column; min-width: 420px; }
+    #rightPanel{ width: 380px; display:flex; flex-direction:column; min-height:0; }
+
+    fieldset.section{
+      border:1px solid var(--border);
+      border-radius: var(--radius);
+      padding:8px 10px 10px;
+      background: color-mix(in srgb, var(--page-bg) 94%, white 6%);
+      box-shadow: var(--shadow-soft);
+      margin: 0 0 10px 0;
+    }
+    legend.sectionLegend{
+      width:100%;
+      padding:0 6px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:8px;
+      user-select:none;
+    }
+    .sectionTitle{
+      font-weight: 950;
+      font-size:11px;
+      letter-spacing:0.02em;
+      color: var(--muted);
+      white-space:nowrap;
+    }
+    .sectionBody.collapsed{ display:none; }
+    .collapseBtn{
+      height:24px;
+      min-width:28px;
+      border-radius:10px;
+      border:none;
+      cursor:pointer;
+      font-weight:950;
+      background: rgba(15,23,42,0.78);
+      color:#fff;
+      box-shadow:none;
+    }
+
+    label.hdr{
+      display:block;
+      margin-top:6px;
+      font-size:11px;
+      font-weight:950;
+      color: var(--muted);
+    }
+    input, select, textarea{
+      margin-top:5px;
+      padding:7px 9px;
+      border-radius: 10px;
+      border:1px solid var(--input-border);
+      font-size:13px;
+      background: var(--input-bg);
+      color: var(--input-fg);
+      outline:none;
+      width:100%;
+    }
+    textarea{ min-height: 78px; resize: vertical; }
+    input:focus, select:focus, textarea:focus{
+      border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+    .hint{ font-size:11px; color: var(--muted); margin-top:6px; line-height:1.25; }
+    .row2{ display:flex; gap:8px; flex-wrap:wrap; }
+    .row2 > div{ flex:1 1 140px; min-width:140px; }
+    .toggleRow{
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      padding: 8px 10px;
+      border: 1px solid rgba(15,23,42,0.10);
+      border-radius: 12px;
+      background: rgba(255,255,255,0.18);
+      margin-top: 8px;
+    }
+    .toggleRow .lbl{ font-size: 12px; font-weight: 950; color: var(--muted); }
+    .toggleRow input[type="checkbox"]{ width: 18px; height: 18px; margin:0; }
+
+    .swatchGrid{
+      display:grid;
+      grid-template-columns: repeat(14, 1fr);
+      gap:6px;
+      margin-top:8px;
+    }
+    .swatch{
+      height:16px;
+      border-radius:8px;
+      border: 1px solid rgba(15,23,42,0.22);
+      cursor:pointer;
+    }
+
+    /* Center */
+    #workspaceWrap{ flex:1; min-height:0; display:flex; flex-direction:column; }
+    #workspaceTop{
+      padding:10px;
+      border-bottom:1px solid var(--border);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      background: rgba(255,255,255,0.18);
+    }
+    #workspaceTop .mini{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    #workspaceTop .mini .badge{ background: rgba(255,255,255,0.30); }
+
+    #workspace-container{
+      position:relative;
+      flex:1;
+      overflow:hidden;
+      border-radius: var(--radius);
+      background: var(--page-bg);
+      cursor:grab;
+      user-select:none;
+    }
+    #workspace-container:active{ cursor:grabbing; }
+    #workspace-container.tool-lasso{ cursor: crosshair; }
+    #workspace-container.tool-lasso:active{ cursor: crosshair; }
+
+    #canvasInner{
+      position:absolute;
+      width:8000px; height:8000px;
+      transform-origin:0 0;
+    }
+    #grid{
+      position:absolute; inset:0;
+      background-image:
+        linear-gradient(to right, var(--grid-color) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid-color) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events:none;
+      opacity: 0.75;
+    }
+    #connectors{
+      position:absolute; top:0; left:0;
+      width:8000px; height:8000px;
+      pointer-events:none;
+      overflow:visible;
+    }
+    #lasso{
+      position:absolute;
+      border: 1px solid var(--lasso-border);
+      background: var(--lasso);
+      border-radius: 10px;
+      pointer-events:none;
+      display:none;
+      z-index:20;
+    }
+
+    .bubble{
+      position:absolute;
+      padding:10px 12px 12px;
+      border-radius: var(--bubble-radius);
+      min-width:190px;
+      max-width:720px;
+      box-shadow: var(--bubble-shadow);
+      cursor:grab;
+      user-select:none;
+      word-wrap:break-word;
+      border: var(--bubble-border);
+      transition: box-shadow .18s ease, border-color .18s ease, filter .18s ease;
+      font-family: var(--bubble-font);
+      font-size: var(--bubble-font-size);
+      backdrop-filter: var(--bubble-backdrop);
+      filter: var(--bubble-glow);
+      overflow:hidden;
+    }
+    .bubble:hover{
+      box-shadow: var(--bubble-hover-shadow);
+      border: var(--bubble-hover-border);
+    }
+    .bubble.selected{
+      outline: 3px solid color-mix(in srgb, var(--accent) 80%, transparent);
+      outline-offset: 2px;
+    }
+    .bubble.editing{ cursor: default; }
+    .bubble .desc{
+      display:-webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 3;
+      overflow:hidden;
+      font-weight:950;
+      line-height:1.22;
+      letter-spacing:0.01em;
+      margin-bottom:4px;
+      padding-right:118px;
+    }
+    .bubble .meta{
+      display:block;
+      font-size: 12px;
+      line-height:1.18;
+      opacity:0.88;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .bubble .tags{
+      margin-top:8px;
+      display:flex;
+      gap:6px;
+      flex-wrap:wrap;
+    }
+    .bubble .tag{
+      font-size:10px;
+      font-weight:950;
+      padding:2px 7px;
+      border-radius:999px;
+      border: 1px solid rgba(15,23,42,0.18);
+      background: rgba(255,255,255,0.28);
+      opacity:0.92;
+    }
+    .bubble .btnrow{
+      width:100%;
+      margin-top:10px;
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .15s ease;
+      display:grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap:8px;
+    }
+    .bubble:hover .btnrow{ opacity:1; pointer-events:auto; }
+    .bubble .btnrow button{
+      width:100%;
+      height:28px;
+      margin:0;
+      padding:0;
+      border-radius:10px;
+      font-size:12px;
+      line-height:1;
+      box-shadow:none;
+      border: 1px solid rgba(255,255,255,0.28);
+      background: rgba(15,23,42,0.78);
+    }
+    .bubble button.editbtn{ background: rgba(59,130,246,0.92); }
+    .bubble button.delbtn{ background: rgba(239,68,68,0.92); }
+    .bubble button.donebtn{ background: rgba(34,197,94,0.92); }
+    .bubble button.focusbtn{ background: rgba(100,116,139,0.92); }
+
+    .priDot{
+      position:absolute;
+      top:10px;
+      right:12px;
+      width:12px;height:12px;
+      border-radius:999px;
+      border:2px solid rgba(255,255,255,0.85);
+      box-shadow: 0 8px 14px rgba(2,6,23,0.08);
+    }
+    .priDot.immediate{
+      width:auto;height:auto;
+      border:none;
+      background:transparent;
+      font-size:16px;
+      line-height:1;
+      top:8px;
+      right:10px;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+
+    .resizeHandle{
+      position:absolute;
+      right:6px;
+      bottom:6px;
+      width:16px;
+      height:16px;
+      cursor: nwse-resize;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.55);
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.0), rgba(255,255,255,0.18)),
+        repeating-linear-gradient(135deg, rgba(255,255,255,0.55) 0 2px, rgba(255,255,255,0.0) 2px 4px);
+      opacity: 0.0;
+      transition: opacity .15s ease;
+    }
+    .bubble:hover .resizeHandle{ opacity: 0.75; }
+    .bubble.editing .resizeHandle{ opacity: 0.0; pointer-events:none; }
+
+    .inlineEditWrap{
+      margin-top:6px;
+      padding:8px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.22);
+      background: rgba(2,6,23,0.10);
+      backdrop-filter: blur(6px);
+    }
+    .inlineEditWrap input, .inlineEditWrap textarea, .inlineEditWrap select{
+      background: rgba(255,255,255,0.65);
+      border: 1px solid rgba(15,23,42,0.18);
+      color: #0f172a;
+      font-weight: 850;
+      border-radius: 10px;
+      padding: 6px 8px;
+      margin-top: 6px;
+      width:100%;
+      font-size: 12px;
+    }
+    .inlineEditWrap textarea{ min-height: 72px; resize: vertical; font-weight: 750; }
+    .inlineEditBtns{ display:flex; gap:8px; margin-top:8px; }
+    .inlineEditBtns button{ height:28px; border-radius: 10px; box-shadow:none; font-size: 12px; width: 100%; }
+
+    /* Right list */
+    #rightTopBar{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      align-items:stretch;
+      padding:10px;
+      border-bottom: 1px solid var(--border);
+    }
+    #recordList{
+      display:flex;
+      flex-direction:column;
+      min-height:0;
+      height:100%;
+    }
+    #recordList .scroller{ overflow-y:auto; padding:0; min-height:0; flex:1; }
+    .sectionHeader{
+      padding:6px 10px;
+      font-size:11px;
+      font-weight:950;
+      letter-spacing:0.02em;
+      color: var(--muted);
+      background: rgba(255,255,255,0.25);
+      border-bottom: 1px solid rgba(15,23,42,0.10);
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(6px);
+      display:flex;
+      gap:10px;
+      align-items:center;
+      z-index:2;
+    }
+    .groupHeader{
+      padding:8px 10px;
+      border-bottom: 1px solid rgba(15,23,42,0.10);
+      background: rgba(255,255,255,0.18);
+      display:flex;
+      align-items:center;
+      gap:10px;
+      cursor:pointer;
+      user-select:none;
+      position: sticky;
+      top: 34px;
+      z-index: 1;
+      backdrop-filter: blur(6px);
+    }
+    .groupHeader .gtitle{ font-size:12px; font-weight: 1000; flex:1; letter-spacing:0.01em; color: var(--muted); }
+    .groupHeader .gcount{ font-size:11px; font-weight: 950; opacity:0.9; }
+    .recordRow{
+      padding:6px 10px;
+      border-bottom: 1px solid rgba(15,23,42,0.08);
+      cursor:pointer;
+      background: var(--row-bg, rgba(255,255,255,0.22));
+    }
+    .recordRow:hover{ filter: brightness(1.05); }
+    .recordRow .top{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      line-height:1.15;
+      padding:4px 6px;
+      border-radius:8px;
+      background: var(--row-top-bg, transparent);
+    }
+    .recordRow .title{
+      font-size:12px;
+      font-weight:900;
+      flex:1;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .recordRow .pill{
+      font-size:11px;
+      font-weight:950;
+      padding:1px 6px;
+      border-radius:999px;
+      border: 1px solid rgba(15,23,42,0.12);
+      background: rgba(255,255,255,0.35);
+      opacity: 0.92;
+    }
+    .recordRow .meta{
+      margin-top:2px;
+      font-size:11px;
+      opacity:0.82;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      line-height:1.1;
+    }
+    .recordRow .dot{
+      width:10px; height:10px; border-radius:999px;
+      border: 2px solid rgba(255,255,255,0.85);
+      box-shadow: 0 8px 14px rgba(2,6,23,0.08);
+      flex: 0 0 auto;
+    }
+
+    /* Dialogs */
+    dialog{
+      border: 1px solid rgba(15,23,42,0.20);
+      border-radius: 16px;
+      padding:0;
+      background: color-mix(in srgb, var(--page-bg) 92%, white 8%);
+      box-shadow: 0 26px 70px rgba(2,6,23,0.32);
+      width: min(980px, calc(100vw - 30px));
+      color: var(--text);
+      overflow:hidden;
+    }
+    dialog::backdrop{ background: rgba(2,6,23,0.45); }
+    .dlgHd{
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(15,23,42,0.14);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      background: rgba(255,255,255,0.18);
+    }
+    .dlgHd h3{ margin:0; font-size:13px; font-weight:950; }
+    .dlgBd{ padding: 12px; overflow:auto; max-height: min(70vh, 740px); }
+    .dlgFt{
+      padding: 10px 12px;
+      border-top: 1px solid rgba(15,23,42,0.14);
+      display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap;
+      background: rgba(255,255,255,0.14);
+    }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    pre{
+      margin:0;
+      padding:10px;
+      border-radius: 12px;
+      border: 1px solid rgba(15,23,42,0.16);
+      background: rgba(2,6,23,0.10);
+      overflow:auto;
+      white-space:pre-wrap;
+      word-break:break-word;
+    }
+
+    /* Slots */
+    .slotGrid{
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap:10px;
+    }
+    @media (max-width: 900px){ .slotGrid{ grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 600px){ .slotGrid{ grid-template-columns: 1fr; } }
+    .slot{
+      border: 1px solid rgba(15,23,42,0.14);
+      border-radius: 16px;
+      padding: 10px;
+      background: rgba(255,255,255,0.18);
+      box-shadow: 0 10px 20px rgba(2,6,23,0.10);
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      min-height: 132px;
+    }
+    .slot.active{
+      outline: 3px solid color-mix(in srgb, var(--accent) 70%, transparent);
+      outline-offset: 2px;
+    }
+    .slotTop{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .slotNum{ font-weight: 1000; letter-spacing: 0.06em; font-size:12px; color: var(--muted); }
+    .slotMeta{ font-size: 11px; color: var(--muted); line-height:1.25; }
+    .slotBtns{
+      display:grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap:8px;
+      margin-top:auto;
+    }
+    .slotBtns button{
+      height: 30px;
+      border-radius: 12px;
+      box-shadow:none;
+      font-size: 12px;
+      border: 1px solid rgba(255,255,255,0.25);
+    }
+    .slotBtns .secondary{ background: rgba(15,23,42,0.78); }
+    .slotBtns .danger{ background: rgba(239,68,68,0.92); }
+    .slotBtns .save{ background: rgba(34,197,94,0.92); }
+    .slotBtns .load{ background: rgba(59,130,246,0.92); }
+
+    /* Manage */
+    .mgrRow{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      padding: 8px 10px;
+      border: 1px solid rgba(15,23,42,0.12);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.18);
+      margin-bottom: 8px;
+    }
+    .mgrRow input{
+      margin-top:0;
+      flex:1;
+      font-weight: 900;
+    }
+    .mgrRow button{
+      height: 32px;
+      border-radius: 12px;
+      box-shadow:none;
+      padding:0 10px;
+      white-space:nowrap;
+    }
+    .mgrRow .danger{ background: rgba(239,68,68,0.92); }
+
+    /* bubble style presets */
+    body[data-bubble-style="classic"]{
+      --bubble-radius: 16px;
+      --bubble-shadow: 0 12px 30px rgba(2,6,23,0.14);
+      --bubble-border: 1px solid rgba(15,23,42,0.12);
+      --bubble-hover-shadow: 0 18px 38px rgba(2,6,23,0.18);
+      --bubble-hover-border: 1px solid rgba(15,23,42,0.18);
+      --bubble-backdrop: none;
+      --bubble-glow: none;
+    }
+    body[data-bubble-style="soft"]{
+      --bubble-radius: 18px;
+      --bubble-shadow: 0 14px 34px rgba(2,6,23,0.12);
+      --bubble-border: 1px solid rgba(255,255,255,0.22);
+      --bubble-hover-shadow: 0 20px 44px rgba(2,6,23,0.16);
+      --bubble-hover-border: 1px solid rgba(255,255,255,0.32);
+    }
+    body[data-bubble-style="glass"]{
+      --bubble-radius: 18px;
+      --bubble-shadow: 0 18px 46px rgba(2,6,23,0.18);
+      --bubble-border: 1px solid rgba(255,255,255,0.26);
+      --bubble-hover-shadow: 0 26px 64px rgba(2,6,23,0.22);
+      --bubble-hover-border: 1px solid rgba(255,255,255,0.36);
+      --bubble-backdrop: blur(8px);
+    }
+    body[data-bubble-style="outline"]{
+      --bubble-radius: 16px;
+      --bubble-shadow: none;
+      --bubble-border: 2px solid rgba(15,23,42,0.35);
+      --bubble-hover-shadow: 0 10px 18px rgba(2,6,23,0.10);
+      --bubble-hover-border: 2px solid rgba(15,23,42,0.45);
+    }
+  </style>
+</head>
+<body data-bubble-style="classic">
+  <div id="topBar">
+    <div id="topBarLeft">
+      <button class="iconBtn info" id="btnMemory" title="Memory card (save slots)">
+        <svg viewBox="0 0 24 24"><path d="M7 6h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Zm2 2v10h6V8H9Z"></path></svg>
+      </button>
+      <button class="iconBtn success" id="btnQuickSave" title="Save to current slot (Ctrl+S)">
+        <svg viewBox="0 0 24 24"><path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4Zm-5 18a3 3 0 1 1 0-6 3 3 0 0 1 0 6ZM6 4h10v4H6V4Z"></path></svg>
+      </button>
+      <button class="iconBtn warn" id="btnUndo" title="Undo (Ctrl+Z) — last 5 steps">
+        <svg viewBox="0 0 24 24"><path d="M12 5a7 7 0 0 1 7 7h-2a5 5 0 0 0-5-5H7.83l2.59 2.59L9 11 4 6l5-5 1.41 1.41L7.83 5H12Zm-7 7h2a5 5 0 0 0 5 5h4.17l-2.59-2.59L15 13l5 5-5 5-1.41-1.41L16.17 19H12a7 7 0 0 1-7-7Z"></path></svg>
+      </button>
+      <div style="width:1px;height:24px;background:rgba(15,23,42,0.18);margin:0 4px;"></div>
+      <button class="iconBtn tool" id="btnTool" title="Toggle tool: Move ↔ Lasso (Space: pan when Lasso)">
+        <svg viewBox="0 0 24 24"><path d="M3 3h4v2H5v2H3V3Zm14 0h4v4h-2V5h-2V3ZM3 17h2v2h2v2H3v-4Zm16 0h2v4h-4v-2h2v-2ZM12 7c3 0 5 2 5 5s-2 5-5 5-5-2-5-5 2-5 5-5Z"></path></svg>
+      </button>
+      <button class="iconBtn warn" id="btnCenter" title="Centre / fit bubbles">
+        <svg viewBox="0 0 24 24"><path d="M11 2h2v3a7 7 0 0 1 6 6h3v2h-3a7 7 0 0 1-6 6v3h-2v-3a7 7 0 0 1-6-6H2v-2h3a7 7 0 0 1 6-6V2Zm1 5a5 5 0 1 0 0 10 5 5 0 0 0 0-10Z"></path></svg>
+      </button>
+      <button class="iconBtn warn" id="btnClear" title="Clear all bubbles (working state)">
+        <svg viewBox="0 0 24 24"><path d="M9 3h6l1 2h5v2H3V5h5l1-2Zm1 7h2v8h-2v-8Zm4 0h2v8h-2v-8ZM7 10h2v8H7v-8Z"></path></svg>
+      </button>
+    </div>
+
+    <div id="topMeta">
+      <span id="appTitle">BORG Inbox</span>
+      <span>Build <code id="buildCode">0005</code></span>
+      <span>Slot <code id="slotCode">01</code></span>
+      <span class="badge" id="savedBadge">Saved</span>
+      <span class="badge" id="hintBadge">Shift: multi-select · Ctrl: link · DblClick: edit</span>
+      <span class="badge" id="toolBadge">Tool: Move</span>
+    </div>
+
+    <div id="topBarRight">
+      <span class="badge" id="countBadge">0 bubbles</span>
+    </div>
+  </div>
+
+  <div id="layout">
+    <aside id="leftPanel" class="panel">
+      <div id="leftScroll">
+        <fieldset class="section">
+          <legend class="sectionLegend">
+            <span class="sectionTitle">Create / Edit Bubble</span>
+            <button class="collapseBtn" type="button" data-collapse="form" title="Collapse">▾</button>
+          </legend>
+          <div class="sectionBody" data-body="form">
+            <form id="bubbleForm">
+              <input type="hidden" id="eid"/>
+
+              <label class="hdr">Type</label>
+              <select id="etype" tabindex="1"></select>
+
+              <label class="hdr">Title</label>
+              <input id="etitle" placeholder="Short title" tabindex="2"/>
+
+              <label class="hdr">Details</label>
+              <textarea id="edetails" placeholder="Notes, list items, URLs, phone numbers…" tabindex="3"></textarea>
+              <div class="hint">Keyboard: <b>Enter</b> saves. In Details: <b>Shift+Enter</b> makes a new line.</div>
+
+              <div class="row2">
+                <div>
+                  <label class="hdr">Status</label>
+                  <select id="estatus" tabindex="4">
+                    <option value="inbox">Inbox</option>
+                    <option value="active">Active</option>
+                    <option value="done">Done</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="hdr">Priority</label>
+                  <select id="epriority" tabindex="5">
+                    <option value="normal">Normal</option>
+                    <option value="priority">Priority</option>
+                    <option value="urgent">Urgent</option>
+                    <option value="immediate">Immediate</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="row2">
+                <div>
+                  <label class="hdr">When (optional)</label>
+                  <input id="ewhen" type="datetime-local" tabindex="6"/>
+                </div>
+                <div>
+                  <label class="hdr">Due (optional)</label>
+                  <input id="edue" type="date" tabindex="7"/>
+                </div>
+              </div>
+
+              <div class="row2">
+                <div>
+                  <label class="hdr">Recurring</label>
+                  <select id="erecurFreq" tabindex="8">
+                    <option value="none">None</option>
+                    <option value="day">Daily</option>
+                    <option value="week">Weekly</option>
+                    <option value="month">Monthly</option>
+                    <option value="year">Yearly</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="hdr">Every</label>
+                  <input id="erecurInt" type="number" min="1" step="1" value="1" tabindex="9"/>
+                </div>
+              </div>
+
+              <label class="hdr">Tags (comma-separated)</label>
+              <input id="etags" placeholder="home, work, errands" tabindex="10" list="tagSuggestions"/>
+              <datalist id="tagSuggestions"></datalist>
+
+              <div class="row2" style="margin-top:10px;">
+                <button id="btnSaveBubble" type="submit" tabindex="11">Save (Enter)</button>
+                <button class="secondary" id="btnClearForm" type="button" tabindex="12">Clear (Esc)</button>
+              </div>
+            </form>
+          </div>
+        </fieldset>
+
+        <fieldset class="section">
+          <legend class="sectionLegend">
+            <span class="sectionTitle">Options</span>
+            <button class="collapseBtn" type="button" data-collapse="options" title="Collapse">▾</button>
+          </legend>
+          <div class="sectionBody" data-body="options">
+            <div class="toggleRow">
+              <div class="lbl">Confirm delete</div>
+              <input type="checkbox" id="optConfirmDelete" checked/>
+            </div>
+            <div class="toggleRow">
+              <div class="lbl">Show grid</div>
+              <input type="checkbox" id="optShowGrid" checked/>
+            </div>
+            <div class="toggleRow">
+              <div class="lbl">Snap to grid</div>
+              <input type="checkbox" id="optSnap"/>
+            </div>
+            <div class="toggleRow">
+              <div class="lbl">Recurring “Done” advances date</div>
+              <input type="checkbox" id="optRecurAdvance" checked/>
+            </div>
+
+            <label class="hdr">Drag tool (default: Move)</label>
+            <select id="optTool">
+              <option value="move" selected>Move (pan canvas)</option>
+              <option value="lasso">Lasso (select)</option>
+            </select>
+            <div class="hint">Tip: when Tool = Lasso, hold <b>Space</b> to pan.</div>
+
+            <label class="hdr">Snap size</label>
+            <select id="optSnapSize">
+              <option value="20">20</option>
+              <option value="30">30</option>
+              <option value="40" selected>40</option>
+              <option value="60">60</option>
+            </select>
+
+            <label class="hdr">Connector thickness</label>
+            <select id="connThick">
+              <option value="1">1</option>
+              <option value="2" selected>2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="6">6</option>
+              <option value="8">8</option>
+              <option value="12">12</option>
+            </select>
+
+            <div class="row2" style="margin-top:10px;">
+              <button class="secondary" id="btnManageTypes" type="button">Manage Types</button>
+              <button class="secondary" id="btnManageTags" type="button">Manage Tags</button>
+            </div>
+
+            <div class="hint" style="margin-top:10px;">
+              • <b>Click canvas</b>: deselect<br/>
+              • <b>Shift-click</b>: multi-select<br/>
+              • <b>Ctrl/⌘-click bubble</b>: link/unlink to selection<br/>
+              • <b>Shift-drag canvas</b>: temporary lasso (Ctrl/⌘+Shift adds)<br/>
+              • Drag selected bubble: moves the whole selection<br/>
+              • <b>Double-click bubble</b>: inline edit<br/>
+              • Bubble corner: resize
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset class="section">
+          <legend class="sectionLegend">
+            <span class="sectionTitle">Theme</span>
+            <button class="collapseBtn" type="button" data-collapse="theme" title="Collapse">▾</button>
+          </legend>
+          <div class="sectionBody" data-body="theme">
+            <label class="hdr">Canvas colour</label>
+            <div class="swatchGrid" id="canvasSwatches"></div>
+
+            <label class="hdr">Default bubble colour</label>
+            <div class="swatchGrid" id="bubbleSwatches"></div>
+
+            <div class="row2">
+              <div>
+                <label class="hdr">Accent</label>
+                <input id="accent1" type="color" style="height:36px;" value="#2563eb"/>
+              </div>
+              <div>
+                <label class="hdr">Accent 2</label>
+                <input id="accent2" type="color" style="height:36px;" value="#7c3aed"/>
+              </div>
+            </div>
+
+            <label class="hdr">Bubble style</label>
+            <select id="bubbleStyle">
+              <option value="classic">Classic</option>
+              <option value="soft">Soft</option>
+              <option value="glass">Glass</option>
+              <option value="outline">Outline</option>
+            </select>
+
+            <div class="hint">Theme auto-adjusts text/readability based on the canvas colour.</div>
+          </div>
+        </fieldset>
+      </div>
+    </aside>
+
+    <main id="center" class="panel">
+      <div id="workspaceWrap">
+        <div id="workspaceTop">
+          <div class="mini">
+            <span class="badge" id="panZoomBadge">100% · x0 y0</span>
+            <span class="badge" id="selectionBadge">0 selected</span>
+          </div>
+          <div class="mini">
+            <span class="badge" id="connBadge">0 links</span>
+            <span class="badge" id="clockBadge">—</span>
+          </div>
+        </div>
+        <div id="workspace-container">
+          <div id="lasso"></div>
+          <div id="canvasInner">
+            <div id="grid"></div>
+            <svg id="connectors" viewBox="0 0 8000 8000" preserveAspectRatio="none"></svg>
+            <div id="bubbles"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <aside id="rightPanel" class="panel">
+      <div id="rightTopBar">
+        <div class="row2" style="gap:8px;">
+          <div style="flex: 1 1 240px;">
+            <input id="searchBox" placeholder="Search…"/>
+          </div>
+          <div style="flex: 1 1 120px; min-width:120px;">
+            <select id="viewMode">
+              <option value="flat" selected>Flat list</option>
+              <option value="byStatus">Group: Status</option>
+              <option value="byType">Group: Type</option>
+              <option value="byDue">Group: Due / When</option>
+              <option value="byTag">Group: Tags</option>
+            </select>
+          </div>
+        </div>
+        <div class="row2" style="gap:8px;">
+          <div style="flex:1 1 160px;">
+            <select id="filterType"></select>
+          </div>
+          <div style="flex:1 1 170px;">
+            <select id="sortBy">
+              <option value="updated_desc">Updated (new)</option>
+              <option value="created_desc">Created (new)</option>
+              <option value="when_asc">When (soon)</option>
+              <option value="due_asc">Due (soon)</option>
+              <option value="title_asc">Title (A→Z)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div id="recordList">
+        <div class="sectionHeader">
+          <span style="flex:1;">Overview</span>
+          <span class="badge" id="overviewBadge">—</span>
+        </div>
+        <div class="scroller" id="listScroller"></div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Memory card -->
+  <dialog id="memoryDlg">
+    <div class="dlgHd">
+      <h3>Memory card — Save slots</h3>
+      <button class="secondary" id="btnCloseMemory" type="button" style="height:32px; padding:0 10px; border-radius: 12px;">Close</button>
+    </div>
+    <div class="dlgBd">
+      <div class="hint">
+        One local JSON store holds <b>Working state</b> + these slots. Slots are snapshots you can name/overwrite/delete.<br/>
+        Tip: click a slot name to rename it, then press Enter.
+      </div>
+      <div style="margin-top: 12px;" class="slotGrid" id="slotGrid"></div>
+    </div>
+    <div class="dlgFt">
+      <button class="secondary" id="btnWipeSlots" type="button">Wipe all slots</button>
+    </div>
+  </dialog>
+
+  <!-- Type manager -->
+  <dialog id="typesDlg">
+    <div class="dlgHd">
+      <h3>Manage bubble types</h3>
+      <button class="secondary" id="btnCloseTypes" type="button" style="height:32px; padding:0 10px; border-radius: 12px;">Close</button>
+    </div>
+    <div class="dlgBd">
+      <div class="hint">Rename types in-place. Deleting a type reassigns its bubbles to “note”.</div>
+      <div style="margin-top:12px;" id="typesList"></div>
+      <div class="mgrRow" style="margin-top:10px;">
+        <input id="newTypeName" placeholder="Add new type (e.g., 'Project')" maxlength="32"/>
+        <button id="btnAddType" type="button">Add</button>
+      </div>
+    </div>
+    <div class="dlgFt">
+      <button class="secondary" id="btnResetTypes" type="button">Reset to defaults</button>
+    </div>
+  </dialog>
+
+  <!-- Tag manager -->
+  <dialog id="tagsDlg">
+    <div class="dlgHd">
+      <h3>Manage tags</h3>
+      <button class="secondary" id="btnCloseTags" type="button" style="height:32px; padding:0 10px; border-radius: 12px;">Close</button>
+    </div>
+    <div class="dlgBd">
+      <div class="hint">Tags are suggestions + for grouping. Renaming updates bubbles. Deleting removes the tag from all bubbles.</div>
+      <div style="margin-top:12px;" id="tagsList"></div>
+      <div class="mgrRow" style="margin-top:10px;">
+        <input id="newTagName" placeholder="Add new tag (e.g., 'home')" maxlength="24"/>
+        <button id="btnAddTag" type="button">Add</button>
+      </div>
+    </div>
+    <div class="dlgFt">
+      <button class="secondary" id="btnHarvestTags" type="button">Harvest tags from bubbles</button>
+    </div>
+  </dialog>
+
+  <!-- Error popup -->
+  <dialog id="errorDlg">
+    <div class="dlgHd">
+      <h3>Runtime error</h3>
+      <button class="secondary" id="btnCloseError" type="button" style="height:32px; padding:0 10px; border-radius: 12px;">Close</button>
+    </div>
+    <div class="dlgBd">
+      <div class="hint">Copy this and paste it to me. It includes build + slot + stack trace.</div>
+      <div style="margin-top:10px;">
+        <pre class="mono" id="errorPre">—</pre>
+      </div>
+    </div>
+    <div class="dlgFt">
+      <button id="btnCopyError" type="button">Copy to clipboard</button>
+    </div>
+  </dialog>
+
+  <script>
+    // =========================================================
+    // BORG Inbox — Build 0006
+    // Fix in 0005:
+    // - 0004 had duplicated const/function declarations causing the app to fail early.
+    // - 0005 deduplicates and reorders init to prevent runtime syntax errors.
+    // =========================================================
+
+    const BUILD = "0005";
+    const APP = "BORG Inbox";
+
+    const KEY_PREFIX = "borg_inbox_v5__";
+    const KEY_CARD = KEY_PREFIX + "card";
+
+    const DEFAULT_CANVAS_BG = "#f3f4f6";
+    const DEFAULT_BUBBLE_COLOR = "#cce5ff";
+    const DEFAULT_STYLE = "classic";
+    const DEFAULT_ACCENT = "#2563eb";
+    const DEFAULT_ACCENT2 = "#7c3aed";
+    const DEFAULT_CONN_THICK = 2;
+
+    const SLOT_COUNT = 12;
+    const UNDO_MAX = 5;
+
+    const DEFAULT_TYPES = ["task","appointment","shopping","note","link","snippet","contact"];
+    const DEFAULT_TAGS = ["home","work","errands"];
+
+    const BUBBLE_COLORS = [
+      "#cce5ff","#d4edda","#fff3cd","#f8d7da","#e2d9f3","#d1ecf1",
+      "#fff7ed","#fef2f2","#0b1220","#111827","#1f2937","#334155",
+      "#312e81","#064e3b","#7c2d12","#701a75"
+    ];
+    const CANVAS_COLORS = [
+      "#f3f4f6","#e7eef9","#fff7ed","#fef2f2","#ecfeff","#f0fdf4",
+      "#050816","#0b1220","#0f172a","#111827","#1f2937","#273449","#334155","#475569"
+    ];
+    const PRIORITY = ["normal","priority","urgent","immediate"];
+    const PRIORITY_DOT = { normal:"#22c55e", priority:"#f59e0b", urgent:"#ef4444", immediate:"🔥" };
+
+    const $ = (id) => document.getElementById(id);
+    const savedBadge = $("savedBadge");
+    const countBadge = $("countBadge");
+    const connBadge = $("connBadge");
+    const selectionBadge = $("selectionBadge");
+    const panZoomBadge = $("panZoomBadge");
+    const slotCode = $("slotCode");
+    const toolBadge = $("toolBadge");
+    const overviewBadge = $("overviewBadge");
+    const clockBadge = $("clockBadge");
+
+    const workspace = $("workspace-container");
+    const canvasInner = $("canvasInner");
+    const connectorsSvg = $("connectors");
+    const bubblesRoot = $("bubbles");
+    const listScroller = $("listScroller");
+    const lassoEl = $("lasso");
+    const gridEl = $("grid");
+
+    $("buildCode").textContent = BUILD;
+
+    // ---------------------------------------------------------
+    // Error overlay (copy-to-clipboard)
+    // ---------------------------------------------------------
+    let card = null;
+    (function installErrorOverlay(){
+      const errorDlg = $("errorDlg");
+      const errorPre = $("errorPre");
+      $("btnCloseError").addEventListener("click", () => errorDlg.close());
+      $("btnCopyError").addEventListener("click", async () => {
+        try { await navigator.clipboard.writeText(errorPre.textContent || ""); }
+        catch { alert("Clipboard copy failed. You can still select + copy manually."); }
+      });
+
+      function fmtErrorPayload(err, meta){
+        const now = new Date().toISOString();
+        const slot = String(card?.currentSlot ?? 1).padStart(2,"0");
+        const ua = navigator.userAgent;
+        const parts = [];
+        parts.push(`${APP} — Build ${BUILD}`);
+        parts.push(`Time: ${now}`);
+        parts.push(`Slot: ${slot}`);
+        parts.push(`URL: ${location.href}`);
+        parts.push(`User-Agent: ${ua}`);
+        if(meta && meta.source) parts.push(`Source: ${meta.source}`);
+        parts.push("");
+        if(typeof err === "string") parts.push(err);
+        else if(err && err.stack) parts.push(err.stack);
+        else parts.push(JSON.stringify(err, null, 2));
+        return parts.join("\n");
+      }
+
+      window.__borgInboxShowError = (err, meta) => {
+        try {
+          errorPre.textContent = fmtErrorPayload(err, meta);
+          errorDlg.showModal();
+        } catch {
+          alert("A runtime error occurred (and the error UI failed to show). Check console.");
+        }
+      };
+
+      window.addEventListener("error", (e) => {
+        if(String(e.message || "").includes("ResizeObserver loop")) return;
+        window.__borgInboxShowError(e.error || e.message || "Unknown error", { source: "window.error" });
+      });
+      window.addEventListener("unhandledrejection", (e) => {
+        window.__borgInboxShowError(e.reason || "Unhandled promise rejection", { source: "unhandledrejection" });
+      });
+    })();
+
+    // ---------------------------------------------------------
+    // Utilities
+    // ---------------------------------------------------------
+    function clamp(n,a,b){ return Math.max(a, Math.min(b,n)); }
+    function uid(){ return Math.random().toString(16).slice(2) + "-" + Date.now().toString(16); }
+    function nowISO(){ return new Date().toISOString(); }
+    function safeJsonParse(raw, fallback){ try{ return JSON.parse(raw); }catch{ return fallback; } }
+    function escapeHtml(s){
+      return String(s ?? "")
+        .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;").replaceAll("'","&#39;");
+    }
+    function safeUrlFromText(text){
+      if(!text) return null;
+      const m = String(text).match(/https?:\/\/[^\s)]+/i);
+      return m ? m[0] : null;
+    }
+    function toLocalDateTimeValue(iso){
+      if(!iso) return "";
+      const d = new Date(iso);
+      if(isNaN(d.getTime())) return "";
+      const pad = n => String(n).padStart(2,"0");
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+    function fromLocalDateTimeValue(v){
+      if(!v) return null;
+      const d = new Date(v);
+      if(isNaN(d.getTime())) return null;
+      return d.toISOString();
+    }
+    function rgbOrHexToHex(c){
+      if(!c) return null;
+      const s = String(c).trim();
+      if(/^#([0-9a-f]{3})$/i.test(s)){
+        const m=s.slice(1).split("");
+        return "#" + m.map(ch=>ch+ch).join("");
+      }
+      if(/^#([0-9a-f]{6})$/i.test(s)) return s.toLowerCase();
+      const m = s.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+      if(m){
+        const r = clamp(parseInt(m[1],10),0,255);
+        const g = clamp(parseInt(m[2],10),0,255);
+        const b = clamp(parseInt(m[3],10),0,255);
+        return "#" + [r,g,b].map(x=>x.toString(16).padStart(2,"0")).join("");
+      }
+      return null;
+    }
+    function luminance(hex){
+      const h = rgbOrHexToHex(hex) || "#ffffff";
+      const r = parseInt(h.slice(1,3),16)/255;
+      const g = parseInt(h.slice(3,5),16)/255;
+      const b = parseInt(h.slice(5,7),16)/255;
+      const t = (v) => (v <= 0.03928) ? v/12.92 : Math.pow((v+0.055)/1.055, 2.4);
+      return 0.2126*t(r) + 0.7152*t(g) + 0.0722*t(b);
+    }
+    function contrastTextForBg(bg){ return luminance(bg) < 0.42 ? "#f8fafc" : "#0f172a"; }
+
+    function startOfLocalDay(date){
+      const d = new Date(date);
+      d.setHours(0,0,0,0);
+      return d;
+    }
+    function endOfLocalDay(date){
+      const d = new Date(date);
+      d.setHours(23,59,59,999);
+      return d;
+    }
+    function parseDueDate(dueAt){
+      if(!dueAt) return null;
+      const m = String(dueAt).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if(!m) return null;
+      const d = new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
+      return endOfLocalDay(d);
+    }
+    function fmtCountdown(ms){
+      const s = Math.round(ms/1000);
+      const abs = Math.abs(s);
+      const sign = s < 0 ? -1 : 1;
+      const days = Math.floor(abs / 86400);
+      const hours = Math.floor((abs % 86400) / 3600);
+      const mins = Math.floor((abs % 3600) / 60);
+
+      if(days >= 2) return (sign < 0 ? `overdue ${days}d` : `in ${days}d`);
+      if(abs >= 3600){
+        const h = Math.max(1, hours);
+        return (sign < 0 ? `overdue ${h}h` : `in ${h}h`);
+      }
+      const m = Math.max(1, mins);
+      return (sign < 0 ? `overdue ${m}m` : `in ${m}m`);
+    }
+    function itemDeadline(item){
+      if(item.whenAt){
+        const d = new Date(item.whenAt);
+        if(!isNaN(d.getTime())) return d;
+      }
+      if(item.dueAt){
+        const d = parseDueDate(item.dueAt);
+        if(d) return d;
+      }
+      return null;
+    }
+    function itemCountdownText(item){
+      const d = itemDeadline(item);
+      if(!d) return "";
+      const ms = d.getTime() - Date.now();
+      return fmtCountdown(ms);
+    }
+
+    function addRecurrence(iso, recur){
+      if(!iso || !recur || recur.freq === "none") return iso;
+      const interval = clamp(Number(recur.interval || 1), 1, 3650);
+      const d = new Date(iso);
+      if(isNaN(d.getTime())) return iso;
+
+      if(recur.freq === "day") d.setDate(d.getDate() + interval);
+      else if(recur.freq === "week") d.setDate(d.getDate() + interval * 7);
+      else if(recur.freq === "month") d.setMonth(d.getMonth() + interval);
+      else if(recur.freq === "year") d.setFullYear(d.getFullYear() + interval);
+
+      return d.toISOString();
+    }
+    function addRecurrenceDueDate(dueAt, recur){
+      if(!dueAt || !recur || recur.freq === "none") return dueAt;
+      const m = String(dueAt).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if(!m) return dueAt;
+      const d = new Date(Number(m[1]), Number(m[2])-1, Number(m[3]));
+      const interval = clamp(Number(recur.interval || 1), 1, 3650);
+
+      if(recur.freq === "day") d.setDate(d.getDate() + interval);
+      else if(recur.freq === "week") d.setDate(d.getDate() + interval * 7);
+      else if(recur.freq === "month") d.setMonth(d.getMonth() + interval);
+      else if(recur.freq === "year") d.setFullYear(d.getFullYear() + interval);
+
+      const pad = n => String(n).padStart(2,"0");
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    }
+
+    // ---------------------------------------------------------
+    // State
+    // ---------------------------------------------------------
+    let dirty = false;
+    let view = { scale: 1, panX: 80, panY: 80 };
+    let state = {
+      version: 2,
+      items: [],
+      links: [],
+      typeDefs: [...DEFAULT_TYPES],
+      tagDefs: [...DEFAULT_TAGS],
+      theme: {
+        canvasBg: DEFAULT_CANVAS_BG,
+        defaultBubbleColor: DEFAULT_BUBBLE_COLOR,
+        bubbleStyle: DEFAULT_STYLE,
+        accent: DEFAULT_ACCENT,
+        accent2: DEFAULT_ACCENT2,
+        connThick: DEFAULT_CONN_THICK
+      },
+      options: {
+        confirmDelete: true,
+        showGrid: true,
+        snapToGrid: false,
+        snapSize: 40,
+        dragTool: "move",
+        recurringDoneAdvances: true
+      }
+    };
+
+    let persistTimer = null;
+    function schedulePersistWorking(){
+      if(persistTimer) return;
+      persistTimer = setTimeout(() => {
+        persistTimer = null;
+        persistWorking();
+      }, 250);
+    }
+    function updateSavedBadge(){
+      savedBadge.textContent = dirty ? "Unsaved" : "Saved";
+      savedBadge.classList.toggle("unsaved", dirty);
+    }
+    function markDirty(){ dirty = true; updateSavedBadge(); schedulePersistWorking(); }
+    function markSaved(){ dirty = false; updateSavedBadge(); schedulePersistWorking(); }
+
+    // ---------------------------------------------------------
+    // Memory card store (single localStorage key)
+    // ---------------------------------------------------------
+    function makeEmptySlot(n){
+      const nn = String(n).padStart(2,"0");
+      return { name: `Slot ${nn}`, payload: null, savedAt: null };
+    }
+    function defaultCard(){
+      const slots=[];
+      for(let i=1;i<=SLOT_COUNT;i++) slots.push(makeEmptySlot(i));
+      slots[0].name = "default";
+      return {
+        version: 1,
+        currentSlot: 1,
+        working: { payload: { state, view }, savedAt: nowISO() },
+        slots
+      };
+    }
+    function loadCard(){
+      const raw = localStorage.getItem(KEY_CARD);
+      const c = safeJsonParse(raw, null);
+      if(!c || typeof c !== "object") return defaultCard();
+
+      const out = defaultCard();
+      out.currentSlot = clamp(Number(c.currentSlot || 1), 1, SLOT_COUNT);
+
+      if(Array.isArray(c.slots)){
+        for(let i=0;i<out.slots.length;i++){
+          const s = c.slots[i];
+          if(s && typeof s === "object"){
+            out.slots[i].name = String(s.name || out.slots[i].name).slice(0,64);
+            out.slots[i].payload = s.payload || null;
+            out.slots[i].savedAt = s.savedAt || null;
+          }
+        }
+      }
+      if(c.working && typeof c.working === "object" && c.working.payload){
+        out.working = { payload: c.working.payload, savedAt: c.working.savedAt || nowISO() };
+      }
+      return out;
+    }
+    function persistCard(){ localStorage.setItem(KEY_CARD, JSON.stringify(card)); }
+    function persistWorking(){
+      if(!card) return;
+      card.working = { payload: { state, view }, savedAt: nowISO() };
+      persistCard();
+    }
+    function slotLabel(n){ return String(n).padStart(2,"0"); }
+    function setCurrentSlot(n){
+      card.currentSlot = clamp(Number(n), 1, SLOT_COUNT);
+      slotCode.textContent = slotLabel(card.currentSlot);
+      persistCard();
+    }
+
+    function sanitizeView(v){
+      const out = { scale: 1, panX: 80, panY: 80 };
+      if(v && typeof v === "object"){
+        out.scale = clamp(Number(v.scale || 1), 0.2, 3);
+        out.panX = Number(v.panX ?? 80);
+        out.panY = Number(v.panY ?? 80);
+      }
+      return out;
+    }
+    function normalizeRecur(r){
+      if(!r || typeof r !== "object") return null;
+      const freq = ["none","day","week","month","year"].includes(r.freq) ? r.freq : "none";
+      if(freq === "none") return null;
+      const interval = clamp(Number(r.interval || 1), 1, 3650);
+      return { freq, interval };
+    }
+    function normalizeItem(i){
+      if(!i || typeof i !== "object") return null;
+      const id = String(i.id || uid());
+      const type = String(i.type || "note");
+      const title = String(i.title || "(untitled)");
+      const details = String(i.details || "");
+      const status = ["inbox","active","done","archived"].includes(i.status) ? i.status : "inbox";
+      const priority = PRIORITY.includes(i.priority) ? i.priority : "normal";
+      const whenAt = i.whenAt ? String(i.whenAt) : null;
+      const dueAt = i.dueAt ? String(i.dueAt) : null;
+      const createdAt = i.createdAt ? String(i.createdAt) : nowISO();
+      const updatedAt = i.updatedAt ? String(i.updatedAt) : createdAt;
+      const tags = Array.isArray(i.tags) ? i.tags.map(t=>String(t).trim()).filter(Boolean).slice(0,24) : [];
+      const color = rgbOrHexToHex(i.color) || (state?.theme?.defaultBubbleColor ?? DEFAULT_BUBBLE_COLOR);
+      const x = Number.isFinite(i.x) ? i.x : 200 + Math.random()*800;
+      const y = Number.isFinite(i.y) ? i.y : 200 + Math.random()*500;
+      const url = safeUrlFromText(details) || safeUrlFromText(title) || null;
+      const w = Number.isFinite(i.w) ? clamp(i.w, 190, 720) : null;
+      const h = Number.isFinite(i.h) ? clamp(i.h, 120, 520) : null;
+      const recur = normalizeRecur(i.recur);
+      return { id, type, title, details, status, priority, whenAt, dueAt, tags, color, x, y, w, h, recur, createdAt, updatedAt, url };
+    }
+    function normalizeLink(l){
+      if(!l || typeof l !== "object") return null;
+      const id = String(l.id || uid());
+      const a = String(l.a || "");
+      const b = String(l.b || "");
+      if(!a || !b || a === b) return null;
+      return { id, a, b };
+    }
+    function sanitizeState(s){
+      const base = {
+        version: 2,
+        items: [],
+        links: [],
+        typeDefs: [...DEFAULT_TYPES],
+        tagDefs: [...DEFAULT_TAGS],
+        theme: { ...state.theme },
+        options: { ...state.options }
+      };
+      if(!s || typeof s !== "object") return base;
+
+      const out = { ...base };
+      const t = s.theme || {};
+      out.theme = {
+        canvasBg: rgbOrHexToHex(t.canvasBg) || DEFAULT_CANVAS_BG,
+        defaultBubbleColor: rgbOrHexToHex(t.defaultBubbleColor) || DEFAULT_BUBBLE_COLOR,
+        bubbleStyle: (["classic","soft","glass","outline"].includes(t.bubbleStyle) ? t.bubbleStyle : DEFAULT_STYLE),
+        accent: rgbOrHexToHex(t.accent) || DEFAULT_ACCENT,
+        accent2: rgbOrHexToHex(t.accent2) || DEFAULT_ACCENT2,
+        connThick: clamp(Number(t.connThick || DEFAULT_CONN_THICK), 1, 24)
+      };
+      const o = s.options || {};
+      out.options = {
+        confirmDelete: !!o.confirmDelete,
+        showGrid: (o.showGrid !== false),
+        snapToGrid: !!o.snapToGrid,
+        snapSize: clamp(Number(o.snapSize || 40), 10, 200),
+        dragTool: (o.dragTool === "lasso" ? "lasso" : "move"),
+        recurringDoneAdvances: (o.recurringDoneAdvances !== false)
+      };
+
+      if(Array.isArray(s.typeDefs) && s.typeDefs.length){
+        out.typeDefs = Array.from(new Set(s.typeDefs.map(x=>String(x).trim()).filter(Boolean))).slice(0,24);
+      }
+      if(!out.typeDefs.includes("note")) out.typeDefs.push("note");
+
+      if(Array.isArray(s.tagDefs)){
+        out.tagDefs = Array.from(new Set(s.tagDefs.map(x=>String(x).trim()).filter(Boolean))).slice(0,200);
+      }
+
+      out.items = Array.isArray(s.items) ? s.items.map(normalizeItem).filter(Boolean) : [];
+      out.links = Array.isArray(s.links) ? s.links.map(normalizeLink).filter(Boolean) : [];
+
+      const ids = new Set(out.items.map(i => i.id));
+      out.links = out.links.filter(l => ids.has(l.a) && ids.has(l.b));
+
+      for(const it of out.items){
+        if(!out.typeDefs.includes(it.type)) it.type = "note";
+      }
+
+      return out;
+    }
+
+    // ---------------------------------------------------------
+    // Theme / options apply
+    // ---------------------------------------------------------
+    function applyReadableThemeForCanvasBg(){
+      const bg = rgbOrHexToHex(state.theme.canvasBg) || DEFAULT_CANVAS_BG;
+      const dark = luminance(bg) < 0.34;
+
+      document.documentElement.style.setProperty("--page-bg", bg);
+      document.documentElement.style.setProperty("--accent", state.theme.accent);
+      document.documentElement.style.setProperty("--accent2", state.theme.accent2);
+
+      if(dark){
+        document.documentElement.style.setProperty("--text", "#f8fafc");
+        document.documentElement.style.setProperty("--muted", "rgba(248,250,252,0.75)");
+        document.documentElement.style.setProperty("--ink", "#f8fafc");
+        document.documentElement.style.setProperty("--border", "rgba(248,250,252,0.18)");
+        document.documentElement.style.setProperty("--scroll-thumb", "rgba(248,250,252,0.35)");
+        document.documentElement.style.setProperty("--scroll-thumb-hover", "rgba(248,250,252,0.52)");
+        document.documentElement.style.setProperty("--input-bg", "rgba(2,6,23,0.45)");
+        document.documentElement.style.setProperty("--input-fg", "#f8fafc");
+        document.documentElement.style.setProperty("--input-border", "rgba(248,250,252,0.18)");
+        document.documentElement.style.setProperty("--grid-color", "rgba(248,250,252,0.06)");
+        document.documentElement.style.setProperty("--conn-color", "rgba(248,250,252,0.34)");
+      } else {
+        document.documentElement.style.setProperty("--text", "#0f172a");
+        document.documentElement.style.setProperty("--muted", "rgba(15,23,42,0.65)");
+        document.documentElement.style.setProperty("--ink", "#0f172a");
+        document.documentElement.style.setProperty("--border", "rgba(15,23,42,0.14)");
+        document.documentElement.style.setProperty("--scroll-thumb", "rgba(15,23,42,0.35)");
+        document.documentElement.style.setProperty("--scroll-thumb-hover", "rgba(15,23,42,0.50)");
+        document.documentElement.style.setProperty("--input-bg", "rgba(255,255,255,0.70)");
+        document.documentElement.style.setProperty("--input-fg", "#0f172a");
+        document.documentElement.style.setProperty("--input-border", "rgba(15,23,42,0.18)");
+        document.documentElement.style.setProperty("--grid-color", "rgba(15,23,42,0.06)");
+        document.documentElement.style.setProperty("--conn-color", "rgba(15,23,42,0.35)");
+      }
+    }
+    function applyToolToDOM(){
+      const tool = state.options.dragTool || "move";
+      workspace.classList.toggle("tool-lasso", tool === "lasso");
+      $("btnTool").classList.toggle("active", tool === "lasso");
+      toolBadge.textContent = "Tool: " + (tool === "lasso" ? "Lasso" : "Move");
+      $("optTool").value = tool;
+    }
+    function applyThemeToDOM(){
+      applyReadableThemeForCanvasBg();
+      document.body.dataset.bubbleStyle = state.theme.bubbleStyle || DEFAULT_STYLE;
+
+      $("accent1").value = rgbOrHexToHex(state.theme.accent) || DEFAULT_ACCENT;
+      $("accent2").value = rgbOrHexToHex(state.theme.accent2) || DEFAULT_ACCENT2;
+      $("bubbleStyle").value = state.theme.bubbleStyle || DEFAULT_STYLE;
+      $("connThick").value = String(state.theme.connThick || DEFAULT_CONN_THICK);
+
+      $("optConfirmDelete").checked = !!state.options.confirmDelete;
+      $("optShowGrid").checked = !!state.options.showGrid;
+      $("optSnap").checked = !!state.options.snapToGrid;
+      $("optSnapSize").value = String(state.options.snapSize || 40);
+      $("optRecurAdvance").checked = (state.options.recurringDoneAdvances !== false);
+
+      gridEl.style.display = state.options.showGrid ? "block" : "none";
+      applyToolToDOM();
+    }
+
+    // ---------------------------------------------------------
+    // Undo stack (last 5)
+    // ---------------------------------------------------------
+    const undoStack = [];
+    function snapshot(){ return JSON.parse(JSON.stringify({ state, view })); }
+    function pushUndo(){ undoStack.push(snapshot()); while(undoStack.length > UNDO_MAX) undoStack.shift(); }
+    function undo(){
+      if(!undoStack.length) return;
+      const snap = undoStack.pop();
+      state = sanitizeState(snap.state);
+      view = sanitizeView(snap.view);
+      applyThemeToDOM();
+      hydrateSelectors();
+      hydrateTagSuggestions();
+      renderAll();
+      markDirty();
+    }
+
+    // ---------------------------------------------------------
+    // Selection + linking
+    // ---------------------------------------------------------
+    const selectedIds = new Set();
+    let inlineEditId = null;
+
+    function clearSelection(){
+      if(selectedIds.size){
+        selectedIds.clear();
+        inlineEditId = null;
+        renderBubbles();
+      }
+    }
+    function toggleSelection(id, multi){
+      if(!multi) selectedIds.clear();
+      if(selectedIds.has(id) && multi) selectedIds.delete(id);
+      else selectedIds.add(id);
+      inlineEditId = null;
+      renderBubbles();
+    }
+    function linkKey(a,b){ return a < b ? `${a}__${b}` : `${b}__${a}`; }
+    function toggleLinksToSelection(targetId){
+      if(selectedIds.size === 0){
+        selectedIds.add(targetId);
+        renderBubbles();
+        return;
+      }
+      if(selectedIds.size === 1 && selectedIds.has(targetId)) return;
+
+      pushUndo();
+      const existing = new Map(state.links.map(l => [linkKey(l.a,l.b), l]));
+      for(const sid of selectedIds){
+        if(sid === targetId) continue;
+        const k = linkKey(sid, targetId);
+        const ex = existing.get(k);
+        if(ex) state.links = state.links.filter(l => l.id !== ex.id);
+        else state.links.push({ id: uid(), a: sid, b: targetId });
+      }
+      markDirty();
+      renderConnectors();
+      renderList();
+    }
+
+    // ---------------------------------------------------------
+    // Canvas transform
+    // ---------------------------------------------------------
+    function applyTransform(){
+      canvasInner.style.transform = `translate(${view.panX}px,${view.panY}px) scale(${view.scale})`;
+      const pct = Math.round(view.scale * 100);
+      panZoomBadge.textContent = `${pct}% · x${Math.round(view.panX)} y${Math.round(view.panY)}`;
+    }
+    function bubbleCenter(item, el){
+      const w = item.w || (el ? el.offsetWidth : 240);
+      const h = item.h || (el ? el.offsetHeight : 160);
+      return { cx: item.x + w/2, cy: item.y + h/2 };
+    }
+
+    function renderConnectors(){
+      const thick = state.theme.connThick || DEFAULT_CONN_THICK;
+      connectorsSvg.innerHTML = "";
+
+      const nodeMap = new Map();
+      for(const el of bubblesRoot.children){
+        const id = el.getAttribute("data-id");
+        if(!id) continue;
+        const it = state.items.find(x => x.id === id);
+        if(it) nodeMap.set(id, { it, el });
+      }
+
+      const stroke = getComputedStyle(document.documentElement).getPropertyValue("--conn-color").trim() || "rgba(15,23,42,0.35)";
+      for(const l of state.links){
+        const A = nodeMap.get(l.a);
+        const B = nodeMap.get(l.b);
+        if(!A || !B) continue;
+
+        const ca = bubbleCenter(A.it, A.el);
+        const cb = bubbleCenter(B.it, B.el);
+
+        const line = document.createElementNS("http://www.w3.org/2000/svg","line");
+        line.setAttribute("x1", String(ca.cx));
+        line.setAttribute("y1", String(ca.cy));
+        line.setAttribute("x2", String(cb.cx));
+        line.setAttribute("y2", String(cb.cy));
+        line.setAttribute("stroke", stroke);
+        line.setAttribute("stroke-width", String(thick));
+        line.setAttribute("stroke-linecap", "round");
+        line.setAttribute("opacity", "0.9");
+        connectorsSvg.appendChild(line);
+      }
+      connBadge.textContent = `${state.links.length} links`;
+    }
+
+    function recurLabel(recur){
+      if(!recur || recur.freq === "none") return "";
+      const n = Number(recur.interval || 1);
+      const base = { day:"day", week:"week", month:"month", year:"year" }[recur.freq] || recur.freq;
+      return n === 1 ? `every ${base}` : `every ${n} ${base}s`;
+    }
+
+    // ---------------------------------------------------------
+    // Render bubbles
+    // ---------------------------------------------------------
+    function inlineEditMarkup(item){
+      const tags = (item.tags || []).join(", ");
+      const details = escapeHtml(item.details || "");
+      const title = escapeHtml(item.title || "");
+      return `
+        <div class="inlineEditWrap">
+          <input class="inEditTitle" value="${title}" placeholder="Title"/>
+          <textarea class="inEditDetails" placeholder="Details (Shift+Enter newline)">${details}</textarea>
+          <div class="row2" style="gap:6px;">
+            <select class="inEditStatus">
+              <option value="inbox" ${item.status==="inbox"?"selected":""}>Inbox</option>
+              <option value="active" ${item.status==="active"?"selected":""}>Active</option>
+              <option value="done" ${item.status==="done"?"selected":""}>Done</option>
+              <option value="archived" ${item.status==="archived"?"selected":""}>Archived</option>
+            </select>
+            <select class="inEditPriority">
+              <option value="normal" ${item.priority==="normal"?"selected":""}>Normal</option>
+              <option value="priority" ${item.priority==="priority"?"selected":""}>Priority</option>
+              <option value="urgent" ${item.priority==="urgent"?"selected":""}>Urgent</option>
+              <option value="immediate" ${item.priority==="immediate"?"selected":""}>Immediate</option>
+            </select>
+          </div>
+          <input class="inEditTags" value="${escapeHtml(tags)}" placeholder="tags, comma-separated"/>
+          <div class="inlineEditBtns">
+            <button class="inEditSave" type="button">Save</button>
+            <button class="secondary inEditCancel" type="button">Cancel</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function wireInlineEdit(bubbleEl, item){
+      const titleEl = bubbleEl.querySelector(".inEditTitle");
+      const detEl = bubbleEl.querySelector(".inEditDetails");
+      const tagsEl = bubbleEl.querySelector(".inEditTags");
+      const stEl = bubbleEl.querySelector(".inEditStatus");
+      const prEl = bubbleEl.querySelector(".inEditPriority");
+      const saveBtn = bubbleEl.querySelector(".inEditSave");
+      const cancelBtn = bubbleEl.querySelector(".inEditCancel");
+
+      const save = () => {
+        try{
+          const title = (titleEl.value || "").trim();
+          const details = (detEl.value || "").trim();
+          if(!title && !details){ alert("Add at least a Title or Details."); return; }
+
+          pushUndo();
+          const it = state.items.find(x => x.id === item.id);
+          if(!it) return;
+          it.title = title || "(untitled)";
+          it.details = details;
+          it.status = stEl.value;
+          it.priority = prEl.value;
+          it.tags = parseTags(tagsEl.value);
+          it.url = safeUrlFromText(it.details) || safeUrlFromText(it.title) || null;
+          it.updatedAt = nowISO();
+
+          harvestTagsIntoDefs();
+          inlineEditId = null;
+          markDirty();
+          hydrateTagSuggestions();
+          renderAll();
+        } catch(err){
+          window.__borgInboxShowError(err, { source:"inlineEdit.save" });
+        }
+      };
+      const cancel = () => {
+        inlineEditId = null;
+        renderBubbles();
+      };
+
+      saveBtn.addEventListener("click", (e)=>{ e.stopPropagation(); save(); });
+      cancelBtn.addEventListener("click", (e)=>{ e.stopPropagation(); cancel(); });
+
+      detEl.addEventListener("keydown", (e)=>{
+        if(e.key === "Escape"){ e.preventDefault(); cancel(); }
+        if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); save(); }
+      });
+      [titleEl, tagsEl].forEach(el => el.addEventListener("keydown", (e)=>{
+        if(e.key === "Escape"){ e.preventDefault(); cancel(); }
+        if(e.key === "Enter"){ e.preventDefault(); save(); }
+      }));
+    }
+
+    function renderBubbles(){
+      bubblesRoot.innerHTML = "";
+      for(const item of state.items){
+        const el = document.createElement("div");
+        el.className = "bubble";
+        el.style.left = item.x + "px";
+        el.style.top = item.y + "px";
+        if(item.w) el.style.width = item.w + "px";
+        if(item.h) el.style.height = item.h + "px";
+        el.style.background = item.color || state.theme.defaultBubbleColor;
+        el.style.color = contrastTextForBg(item.color || state.theme.defaultBubbleColor);
+        el.setAttribute("data-id", item.id);
+        if(selectedIds.has(item.id)) el.classList.add("selected");
+
+        const pri = item.priority || "normal";
+        const dot = PRIORITY_DOT[pri] || PRIORITY_DOT.normal;
+
+        const cd = itemCountdownText(item);
+        const whenTxt = item.whenAt ? ("When: " + new Date(item.whenAt).toLocaleString()) : "";
+        const dueTxt = item.dueAt ? ("Due: " + new Date(item.dueAt + "T00:00:00").toLocaleDateString()) : "";
+        const timeParts = [whenTxt, dueTxt].filter(Boolean).join(" · ");
+        const recurTxt = item.recur ? (" · " + recurLabel(item.recur)) : "";
+        const cdTxt = cd ? (" · " + cd) : "";
+
+        const metaParts = [item.type, item.status].filter(Boolean);
+        const tagsHtml = (item.tags || []).slice(0,10).map(t => `<span class="tag">#${escapeHtml(t)}</span>`).join("");
+
+        const isEditing = (inlineEditId === item.id);
+        if(isEditing) el.classList.add("editing");
+
+        const headerHtml = `
+          <div class="priDot ${pri === "immediate" ? "immediate" : ""}" title="Priority: ${escapeHtml(pri)}"
+               style="${pri === "immediate" ? "" : `background:${dot};`}">${pri === "immediate" ? "🔥" : ""}</div>
+          <div class="desc">${escapeHtml(item.title || "(untitled)")}</div>
+          <span class="meta">${escapeHtml(metaParts.join(" · "))}${cdTxt}${recurTxt}</span>
+          <span class="meta">${escapeHtml(timeParts)}</span>
+          <span class="meta">${escapeHtml((item.details || "").split("\n")[0] || "")}</span>
+          <div class="tags">${tagsHtml}</div>
+        `;
+
+        const buttonsHtml = `
+          <div class="btnrow">
+            <button class="focusbtn" type="button" title="Focus">◉</button>
+            <button class="donebtn" type="button" title="Done (or advance recurrence)">✓</button>
+            <button class="editbtn" type="button" title="Edit (side panel)">✎</button>
+            <button class="delbtn" type="button" title="Delete">×</button>
+          </div>
+        `;
+
+        el.innerHTML = headerHtml + (isEditing ? inlineEditMarkup(item) : buttonsHtml);
+
+        // Resize handle
+        const rh = document.createElement("div");
+        rh.className = "resizeHandle";
+        rh.title = "Resize";
+        el.appendChild(rh);
+
+        // Drag start (move selection)
+        el.addEventListener("mousedown", (e) => {
+          if(e.button !== 0) return;
+
+          const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : "";
+          if(["input","textarea","select","button"].includes(tag)) return;
+          if(e.target && e.target.classList && e.target.classList.contains("resizeHandle")) return;
+          if(e.ctrlKey || e.metaKey) return; // ctrl-click reserved for linking
+          if(inlineEditId === item.id) return;
+
+          e.preventDefault();
+          startGroupDrag(e, item.id);
+        });
+
+        // Click select / link
+        el.addEventListener("click", (e) => {
+          const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : "";
+          if(["input","textarea","select","button"].includes(tag)) return;
+          if(e.target && e.target.classList && e.target.classList.contains("resizeHandle")) return;
+
+          if(e.ctrlKey || e.metaKey){
+            e.preventDefault();
+            toggleLinksToSelection(item.id);
+            return;
+          }
+          toggleSelection(item.id, e.shiftKey);
+        });
+
+        // Double-click inline edit
+        el.addEventListener("dblclick", (e) => {
+          const tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : "";
+          if(["input","textarea","select","button"].includes(tag)) return;
+          if(e.target && e.target.classList && e.target.classList.contains("resizeHandle")) return;
+          e.preventDefault();
+          inlineEditId = item.id;
+          selectedIds.clear();
+          selectedIds.add(item.id);
+          renderBubbles();
+          const input = bubblesRoot.querySelector(`[data-id="${CSS.escape(item.id)}"] .inEditTitle`);
+          if(input) input.focus();
+        });
+
+        // Buttons
+        const focusBtn = el.querySelector(".focusbtn");
+        const doneBtn = el.querySelector(".donebtn");
+        const editBtn = el.querySelector(".editbtn");
+        const delBtn  = el.querySelector(".delbtn");
+        if(focusBtn) focusBtn.addEventListener("click", (e) => { e.stopPropagation(); focusItem(item.id); });
+        if(editBtn)  editBtn.addEventListener("click", (e) => { e.stopPropagation(); loadIntoForm(item.id); $("etitle").focus(); });
+        if(delBtn)   delBtn.addEventListener("click", (e) => { e.stopPropagation(); deleteItem(item.id); });
+        if(doneBtn)  doneBtn.addEventListener("click", (e) => { e.stopPropagation(); markDoneOrAdvance(item.id); });
+
+        if(isEditing) wireInlineEdit(el, item);
+
+        // Resize wiring
+        rh.addEventListener("mousedown", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          startResize(e, item.id);
+        });
+
+        bubblesRoot.appendChild(el);
+      }
+
+      countBadge.textContent = `${state.items.length} bubbles`;
+      selectionBadge.textContent = `${selectedIds.size} selected`;
+      renderConnectors();
+    }
+
+    // ---------------------------------------------------------
+    // Right panel (grouped views)
+    // ---------------------------------------------------------
+    const collapsedGroups = new Set();
+    function groupKeyLabel(kind, key){
+      if(kind === "status"){
+        return { inbox:"Inbox", active:"Active", done:"Done", archived:"Archived" }[key] || key;
+      }
+      if(kind === "due"){
+        return { overdue:"Overdue", today:"Today", soon:"Soon", later:"Later", someday:"Someday" }[key] || key;
+      }
+      return key;
+    }
+    function classifyDue(item){
+      const d = itemDeadline(item);
+      if(!d) return "someday";
+      const now = new Date();
+      const endToday = endOfLocalDay(now);
+      if(d.getTime() < now.getTime()) return "overdue";
+      if(d.getTime() <= endToday.getTime()) return "today";
+      const inDays = (d.getTime() - endToday.getTime()) / 86400000;
+      if(inDays <= 7) return "soon";
+      return "later";
+    }
+    function makeGroup(kind, key){
+      return { kind, key, label: groupKeyLabel(kind, key), items: [] };
+    }
+
+    function makeRow(item){
+      const row = document.createElement("div");
+      row.className = "recordRow";
+      row.setAttribute("data-id", item.id);
+
+      const fg = contrastTextForBg(item.color || state.theme.defaultBubbleColor);
+      const rowBg = item.color || state.theme.defaultBubbleColor;
+      row.style.setProperty("--row-bg", rowBg);
+      row.style.setProperty("--row-top-bg", "color-mix(in srgb, " + rowBg + " 88%, black 12%)");
+      row.style.color = fg;
+
+      const dot = (item.priority === "immediate") ? "#f59e0b" : (PRIORITY_DOT[item.priority] || "#22c55e");
+      const metaBits = [];
+      const cd = itemCountdownText(item);
+      if(cd) metaBits.push(cd);
+      if(item.whenAt) metaBits.push("When: " + new Date(item.whenAt).toLocaleString());
+      if(item.dueAt) metaBits.push("Due: " + new Date(item.dueAt + "T00:00:00").toLocaleDateString());
+      if(item.recur) metaBits.push(recurLabel(item.recur));
+      metaBits.push(`${item.type} · ${item.status}`);
+
+      row.innerHTML = `
+        <div class="top">
+          <span class="dot" style="background:${dot};"></span>
+          <div class="title">${escapeHtml(item.title || "(untitled)")}</div>
+          <span class="pill">${escapeHtml(item.priority || "normal")}</span>
+        </div>
+        <div class="meta">${escapeHtml(metaBits.join(" · "))}</div>
+      `;
+
+      row.addEventListener("click", (e) => {
+        focusItem(item.id);
+        toggleSelection(item.id, e.shiftKey);
+      });
+
+      return row;
+    }
+
+    function renderList(){
+      const q = ($("searchBox").value || "").trim().toLowerCase();
+      const ft = $("filterType").value;
+      const sortBy = $("sortBy").value;
+      const viewMode = $("viewMode").value;
+
+      let items = [...state.items];
+
+      if(ft !== "all") items = items.filter(i => i.type === ft);
+      if(q){
+        items = items.filter(i => {
+          const hay = [i.title, i.details, (i.tags||[]).join(" "), i.type, i.status, i.priority].join("\n").toLowerCase();
+          return hay.includes(q);
+        });
+      }
+
+      const cmp = {
+        updated_desc: (a,b) => (b.updatedAt||"").localeCompare(a.updatedAt||""),
+        created_desc: (a,b) => (b.createdAt||"").localeCompare(a.createdAt||""),
+        when_asc: (a,b) => ((a.whenAt||"9999") > (b.whenAt||"9999")) ? 1 : -1,
+        due_asc: (a,b) => ((a.dueAt||"9999") > (b.dueAt||"9999")) ? 1 : -1,
+        title_asc: (a,b) => (a.title||"").localeCompare(b.title||""),
+      }[sortBy] || ((a,b)=>0);
+
+      const byStatus = { inbox:0, active:0, done:0, archived:0 };
+      for(const it of items){ if(byStatus[it.status] != null) byStatus[it.status]++; }
+      overviewBadge.textContent = `I${byStatus.inbox} A${byStatus.active} D${byStatus.done}`;
+
+      listScroller.innerHTML = "";
+      if(!items.length){
+        const div = document.createElement("div");
+        div.style.padding = "12px";
+        div.className = "hint";
+        div.textContent = "No records match those filters.";
+        listScroller.appendChild(div);
+        return;
+      }
+
+      if(viewMode === "flat"){
+        items.sort(cmp);
+        for(const item of items) listScroller.appendChild(makeRow(item));
+        return;
+      }
+
+      const groups = [];
+      const map = new Map();
+      const push = (kind, key, item) => {
+        const k = kind + "::" + key;
+        if(!map.has(k)){
+          const g = makeGroup(kind, key);
+          map.set(k, g);
+          groups.push(g);
+        }
+        map.get(k).items.push(item);
+      };
+
+      if(viewMode === "byStatus"){
+        for(const it of items) push("status", it.status || "inbox", it);
+        const order = ["inbox","active","done","archived"];
+        groups.sort((a,b)=> order.indexOf(a.key) - order.indexOf(b.key));
+      } else if(viewMode === "byType"){
+        for(const it of items) push("type", it.type || "note", it);
+        groups.sort((a,b)=> a.label.localeCompare(b.label));
+      } else if(viewMode === "byDue"){
+        for(const it of items) push("due", classifyDue(it), it);
+        const order = ["overdue","today","soon","later","someday"];
+        groups.sort((a,b)=> order.indexOf(a.key) - order.indexOf(b.key));
+      } else if(viewMode === "byTag"){
+        for(const it of items){
+          const tgs = (it.tags||[]).length ? (it.tags||[]) : ["(no tags)"];
+          const uniq = Array.from(new Set(tgs)).slice(0,10);
+          for(const t of uniq) push("tag", t === "(no tags)" ? t : ("#" + t), it);
+        }
+        groups.sort((a,b)=> a.label.localeCompare(b.label));
+      }
+
+      for(const g of groups){
+        g.items.sort(cmp);
+
+        const gh = document.createElement("div");
+        gh.className = "groupHeader";
+        const gkey = `${g.kind}:${g.key}`;
+        const isCollapsed = collapsedGroups.has(gkey);
+        gh.innerHTML = `
+          <div class="gtitle">${escapeHtml(g.label)}</div>
+          <div class="gcount">${g.items.length}</div>
+          <div class="badge">${isCollapsed ? "▸" : "▾"}</div>
+        `;
+        gh.addEventListener("click", () => {
+          if(collapsedGroups.has(gkey)) collapsedGroups.delete(gkey);
+          else collapsedGroups.add(gkey);
+          renderList();
+        });
+        listScroller.appendChild(gh);
+
+        if(!isCollapsed){
+          for(const it of g.items) listScroller.appendChild(makeRow(it));
+        }
+      }
+    }
+
+    function renderAll(){
+      applyTransform();
+      renderBubbles();
+      renderList();
+      clockBadge.textContent = new Date().toLocaleString();
+    }
+
+    // ---------------------------------------------------------
+    // CRUD + helpers
+    // ---------------------------------------------------------
+    function clearForm(){
+      $("eid").value = "";
+      $("etype").value = state.typeDefs[0] || "note";
+      $("etitle").value = "";
+      $("edetails").value = "";
+      $("estatus").value = "inbox";
+      $("epriority").value = "normal";
+      $("ewhen").value = "";
+      $("edue").value = "";
+      $("erecurFreq").value = "none";
+      $("erecurInt").value = "1";
+      $("etags").value = "";
+    }
+    $("btnClearForm").addEventListener("click", clearForm);
+
+    function parseTags(input){
+      return Array.from(new Set((input||"").split(",").map(s=>s.trim()).filter(Boolean))).slice(0,24);
+    }
+    function confirmMaybe(msg){ return state.options.confirmDelete ? confirm(msg) : true; }
+
+    function screenToWorld(sx, sy){ return { x: (sx - view.panX) / view.scale, y: (sy - view.panY) / view.scale }; }
+    function snap(n){
+      if(!state.options.snapToGrid) return n;
+      const g = Number(state.options.snapSize || 40);
+      return Math.round(n / g) * g;
+    }
+
+    function groupDefaultColor(){
+      if(!selectedIds.size) return state.theme.defaultBubbleColor;
+      const sel = state.items.filter(i => selectedIds.has(i.id));
+      if(sel.length < 1) return state.theme.defaultBubbleColor;
+      sel.sort((a,b)=> (b.createdAt||"").localeCompare(a.createdAt||""));
+      return sel[0].color || state.theme.defaultBubbleColor;
+    }
+
+    function saveFromForm(){
+      const id = ($("eid").value || "").trim();
+      const type = $("etype").value;
+      const title = ($("etitle").value || "").trim();
+      const details = ($("edetails").value || "").trim();
+      const status = $("estatus").value;
+      const priority = $("epriority").value;
+      const whenAt = fromLocalDateTimeValue($("ewhen").value);
+      const dueAt = ($("edue").value || "").trim() || null;
+      const tags = parseTags($("etags").value);
+      const rfreq = $("erecurFreq").value;
+      const rint = clamp(Number($("erecurInt").value || 1), 1, 3650);
+      const recur = (rfreq && rfreq !== "none") ? { freq: rfreq, interval: rint } : null;
+
+      if(!title && !details){ alert("Add at least a Title or Details."); return; }
+
+      pushUndo();
+
+      if(id){
+        const it = state.items.find(x => x.id === id);
+        if(!it) return;
+        Object.assign(it, {
+          type,
+          title: title || "(untitled)",
+          details,
+          status,
+          priority,
+          whenAt,
+          dueAt,
+          tags,
+          recur,
+          url: safeUrlFromText(details) || safeUrlFromText(title) || null,
+          updatedAt: nowISO()
+        });
+      } else {
+        const world = screenToWorld(workspace.clientWidth/2, workspace.clientHeight/2);
+        const it = normalizeItem({
+          id: uid(),
+          type,
+          title: title || (type === "note" ? "Note" : "(untitled)"),
+          details,
+          status,
+          priority,
+          whenAt,
+          dueAt,
+          tags,
+          recur,
+          color: groupDefaultColor(),
+          x: clamp(snap(world.x - 140), 0, 7800),
+          y: clamp(snap(world.y - 90), 0, 7800),
+          createdAt: nowISO(),
+          updatedAt: nowISO()
+        });
+        state.items.unshift(it);
+      }
+
+      harvestTagsIntoDefs();
+
+      markDirty();
+      hydrateTagSuggestions();
+      renderAll();
+      clearForm();
+      $("etitle").focus();
+    }
+
+    function deleteItem(id){
+      if(!confirmMaybe("Delete this bubble?")) return;
+      pushUndo();
+      state.items = state.items.filter(i => i.id !== id);
+      state.links = state.links.filter(l => l.a !== id && l.b !== id);
+      selectedIds.delete(id);
+      if(inlineEditId === id) inlineEditId = null;
+      markDirty();
+      renderAll();
+    }
+    function deleteSelected(){
+      if(!selectedIds.size) return;
+      if(!confirmMaybe(`Delete ${selectedIds.size} selected bubble(s)?`)) return;
+      pushUndo();
+      const ids = new Set(selectedIds);
+      state.items = state.items.filter(i => !ids.has(i.id));
+      state.links = state.links.filter(l => !ids.has(l.a) && !ids.has(l.b));
+      selectedIds.clear();
+      inlineEditId = null;
+      markDirty();
+      renderAll();
+    }
+    function loadIntoForm(id){
+      const it = state.items.find(x => x.id === id);
+      if(!it) return;
+      $("eid").value = it.id;
+      $("etype").value = it.type || "note";
+      $("etitle").value = it.title || "";
+      $("edetails").value = it.details || "";
+      $("estatus").value = it.status || "inbox";
+      $("epriority").value = it.priority || "normal";
+      $("ewhen").value = it.whenAt ? toLocalDateTimeValue(it.whenAt) : "";
+      $("edue").value = it.dueAt || "";
+      $("erecurFreq").value = it.recur?.freq || "none";
+      $("erecurInt").value = String(it.recur?.interval || 1);
+      $("etags").value = (it.tags || []).join(", ");
+    }
+
+    function markDoneOrAdvance(id){
+      const it = state.items.find(x => x.id === id);
+      if(!it) return;
+      pushUndo();
+
+      if(it.recur && state.options.recurringDoneAdvances){
+        if(it.whenAt) it.whenAt = addRecurrence(it.whenAt, it.recur);
+        if(it.dueAt) it.dueAt = addRecurrenceDueDate(it.dueAt, it.recur);
+        it.status = "active";
+        it.updatedAt = nowISO();
+      } else {
+        it.status = "done";
+        it.updatedAt = nowISO();
+      }
+
+      markDirty();
+      renderAll();
+    }
+
+    // ---------------------------------------------------------
+    // Focus / Fit
+    // ---------------------------------------------------------
+    function focusItem(id){
+      const it = state.items.find(x => x.id === id);
+      if(!it) return;
+      const w = it.w || 320;
+      const h = it.h || 200;
+      const target = { x: it.x + w/2, y: it.y + h/2 };
+      view.panX = (workspace.clientWidth/2) - target.x * view.scale;
+      view.panY = (workspace.clientHeight/2) - target.y * view.scale;
+      applyTransform();
+      selectedIds.clear();
+      selectedIds.add(id);
+      inlineEditId = null;
+      renderBubbles();
+      schedulePersistWorking();
+    }
+    function fitToBubbles(){
+      if(!state.items.length){ view.scale=1; view.panX=80; view.panY=80; applyTransform(); return; }
+      let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+      for(const it of state.items){
+        const w = it.w || 320;
+        const h = it.h || 200;
+        minX = Math.min(minX, it.x);
+        minY = Math.min(minY, it.y);
+        maxX = Math.max(maxX, it.x + w);
+        maxY = Math.max(maxY, it.y + h);
+      }
+      const pad = 160;
+      minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+      const w = maxX - minX;
+      const h = maxY - minY;
+
+      const sX = workspace.clientWidth / w;
+      const sY = workspace.clientHeight / h;
+      view.scale = clamp(Math.min(sX, sY), 0.2, 2.2);
+
+      view.panX = (workspace.clientWidth/2) - ((minX + w/2) * view.scale);
+      view.panY = (workspace.clientHeight/2) - ((minY + h/2) * view.scale);
+      applyTransform();
+      renderConnectors();
+      schedulePersistWorking();
+    }
+
+    // ---------------------------------------------------------
+    // Form submit + Enter-to-save
+    // ---------------------------------------------------------
+    $("bubbleForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      try{ saveFromForm(); }catch(err){ window.__borgInboxShowError(err, { source: "bubbleForm.submit" }); }
+    });
+    ["etype","etitle","estatus","epriority","ewhen","edue","erecurFreq","erecurInt","etags"].forEach(id => {
+      const el = $(id);
+      el.addEventListener("keydown", (e) => {
+        if(e.key === "Enter"){ e.preventDefault(); $("bubbleForm").requestSubmit(); }
+      });
+    });
+    $("edetails").addEventListener("keydown", (e) => {
+      if(e.key === "Enter" && !e.shiftKey){ e.preventDefault(); $("bubbleForm").requestSubmit(); }
+    });
+
+    // ---------------------------------------------------------
+    // Global shortcuts
+    // ---------------------------------------------------------
+    let spaceDown = false;
+    function isTypingTarget(t){
+      const tag = (t && t.tagName) ? t.tagName.toLowerCase() : "";
+      return (tag === "input" || tag === "textarea" || tag === "select" || (t && t.isContentEditable));
+    }
+    window.addEventListener("keydown", (e) => {
+      if(e.key === " " && !isTypingTarget(e.target)) spaceDown = true;
+
+      if(e.key === "Escape"){
+        inlineEditId = null;
+        clearForm();
+        renderBubbles();
+        return;
+      }
+      if((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === "z"){ e.preventDefault(); undo(); return; }
+      if((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s"){ e.preventDefault(); quickSaveToCurrentSlot(); return; }
+
+      const typing = isTypingTarget(e.target);
+      if(!typing && (e.key === "Delete" || e.key === "Backspace")) deleteSelected();
+    });
+    window.addEventListener("keyup", (e) => {
+      if(e.key === " ") spaceDown = false;
+    });
+
+    // Collapse sections
+    document.querySelectorAll(".collapseBtn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const key = btn.getAttribute("data-collapse");
+        const body = document.querySelector(`.sectionBody[data-body="${key}"]`);
+        if(!body) return;
+        const collapsed = body.classList.toggle("collapsed");
+        btn.textContent = collapsed ? "▸" : "▾";
+      });
+    });
+
+    // ---------------------------------------------------------
+    // Options wiring
+    // ---------------------------------------------------------
+    $("optConfirmDelete").addEventListener("change", () => { pushUndo(); state.options.confirmDelete = $("optConfirmDelete").checked; markDirty(); });
+    $("optShowGrid").addEventListener("change", () => { pushUndo(); state.options.showGrid = $("optShowGrid").checked; markDirty(); applyThemeToDOM(); });
+    $("optSnap").addEventListener("change", () => { pushUndo(); state.options.snapToGrid = $("optSnap").checked; markDirty(); });
+    $("optSnapSize").addEventListener("change", () => { pushUndo(); state.options.snapSize = Number($("optSnapSize").value || 40); markDirty(); });
+    $("connThick").addEventListener("change", () => { pushUndo(); state.theme.connThick = Number($("connThick").value || DEFAULT_CONN_THICK); markDirty(); renderConnectors(); });
+    $("optRecurAdvance").addEventListener("change", () => { pushUndo(); state.options.recurringDoneAdvances = $("optRecurAdvance").checked; markDirty(); });
+    $("optTool").addEventListener("change", () => { pushUndo(); state.options.dragTool = $("optTool").value; markDirty(); applyToolToDOM(); });
+
+    // Theme wiring
+    $("accent1").addEventListener("input", () => { pushUndo(); state.theme.accent = $("accent1").value; markDirty(); applyThemeToDOM(); });
+    $("accent2").addEventListener("input", () => { pushUndo(); state.theme.accent2 = $("accent2").value; markDirty(); applyThemeToDOM(); });
+    $("bubbleStyle").addEventListener("change", () => { pushUndo(); state.theme.bubbleStyle = $("bubbleStyle").value; markDirty(); applyThemeToDOM(); });
+
+    // Right panel wiring
+    $("searchBox").addEventListener("input", renderList);
+    $("filterType").addEventListener("change", renderList);
+    $("sortBy").addEventListener("change", renderList);
+    $("viewMode").addEventListener("change", renderList);
+
+    // Tool toggle button
+    $("btnTool").addEventListener("click", () => {
+      pushUndo();
+      state.options.dragTool = (state.options.dragTool === "lasso") ? "move" : "lasso";
+      markDirty();
+      applyToolToDOM();
+    });
+
+    // ---------------------------------------------------------
+    // Canvas interactions: pan / zoom / lasso / deselect
+    // ---------------------------------------------------------
+    let panActive = false;
+    let panStart = { x:0, y:0, panX:0, panY:0 };
+    let lassoActive = false;
+    let lassoStart = { x:0, y:0 };
+    let lassoAdditive = false;
+    let bgDown = null; // click-to-deselect
+
+    function setLassoRect(x1,y1,x2,y2){
+      const left = Math.min(x1,x2);
+      const top = Math.min(y1,y2);
+      const w = Math.abs(x2-x1);
+      const h = Math.abs(y2-y1);
+      lassoEl.style.left = left + "px";
+      lassoEl.style.top = top + "px";
+      lassoEl.style.width = w + "px";
+      lassoEl.style.height = h + "px";
+    }
+
+    workspace.addEventListener("mousedown", (e) => {
+      if(e.button !== 0) return;
+
+      const bubbleEl = e.target.closest && e.target.closest(".bubble");
+      if(bubbleEl) return;
+
+      const r = workspace.getBoundingClientRect();
+      const mx = e.clientX - r.left;
+      const my = e.clientY - r.top;
+      bgDown = { x: mx, y: my, moved: false, hadSelection: selectedIds.size > 0 };
+
+      const tool = state.options.dragTool || "move";
+      const wantsLasso = (tool === "lasso" && !spaceDown) || e.shiftKey;
+      if(wantsLasso){
+        lassoActive = true;
+        lassoAdditive = !!(e.ctrlKey || e.metaKey || (tool === "lasso" && e.shiftKey));
+        lassoStart = { x: mx, y: my };
+        setLassoRect(lassoStart.x, lassoStart.y, lassoStart.x, lassoStart.y);
+        lassoEl.style.display = "block";
+        e.preventDefault();
+        return;
+      }
+
+      panActive = true;
+      panStart = { x: e.clientX, y: e.clientY, panX: view.panX, panY: view.panY };
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if(bgDown){
+        const r = workspace.getBoundingClientRect();
+        const mx = e.clientX - r.left;
+        const my = e.clientY - r.top;
+        if(Math.hypot(mx - bgDown.x, my - bgDown.y) > 4) bgDown.moved = true;
+      }
+
+      if(lassoActive){
+        const r = workspace.getBoundingClientRect();
+        setLassoRect(lassoStart.x, lassoStart.y, e.clientX - r.left, e.clientY - r.top);
+        return;
+      }
+      if(!panActive) return;
+      view.panX = panStart.panX + (e.clientX - panStart.x);
+      view.panY = panStart.panY + (e.clientY - panStart.y);
+      applyTransform();
+      schedulePersistWorking();
+    });
+
+    window.addEventListener("mouseup", (e) => {
+      if(panActive) panActive = false;
+
+      if(lassoActive){
+        const lrect = lassoEl.getBoundingClientRect();
+        lassoEl.style.display = "none";
+        lassoActive = false;
+
+        const hitIds = [];
+        for(const el of bubblesRoot.children){
+          const brect = el.getBoundingClientRect();
+          const hit = !(brect.right < lrect.left || brect.left > lrect.right || brect.bottom < lrect.top || brect.top > lrect.bottom);
+          if(hit){
+            const id = el.getAttribute("data-id");
+            if(id) hitIds.push(id);
+          }
+        }
+
+        if(!lassoAdditive) selectedIds.clear();
+        for(const id of hitIds) selectedIds.add(id);
+        inlineEditId = null;
+        renderBubbles();
+      } else if(bgDown){
+        const isClick = !bgDown.moved;
+        const noMods = !(e.ctrlKey || e.metaKey || e.shiftKey || e.altKey);
+        if(isClick && noMods && bgDown.hadSelection) clearSelection();
+      }
+      bgDown = null;
+    });
+
+    workspace.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      const rect = workspace.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+
+      const delta = -e.deltaY;
+      const zoomFactor = delta > 0 ? 1.08 : 0.92;
+      const prevScale = view.scale;
+      const next = clamp(prevScale * zoomFactor, 0.2, 3);
+      if(next === prevScale) return;
+
+      const worldBefore = screenToWorld(mouseX, mouseY);
+      view.scale = next;
+      view.panX = mouseX - worldBefore.x * view.scale;
+      view.panY = mouseY - worldBefore.y * view.scale;
+
+      applyTransform();
+      renderConnectors();
+      schedulePersistWorking();
+    }, { passive:false });
+
+    // ---------------------------------------------------------
+    // Group drag (move selection)
+    // ---------------------------------------------------------
+    let drag = null; // { ids, startWorld, startPos }
+    function startGroupDrag(e, id){
+      const rect = workspace.getBoundingClientRect();
+      const w = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+
+      if(!selectedIds.has(id)){
+        if(!e.shiftKey) selectedIds.clear();
+        selectedIds.add(id);
+        inlineEditId = null;
+        renderBubbles();
+      }
+
+      const ids = Array.from(selectedIds);
+      const startPos = new Map();
+      for(const bid of ids){
+        const it = state.items.find(x => x.id === bid);
+        if(it) startPos.set(bid, { x: it.x, y: it.y });
+      }
+
+      pushUndo();
+      drag = { ids, startWorld: w, startPos };
+    }
+
+    window.addEventListener("mousemove", (e) => {
+      if(!drag) return;
+      const rect = workspace.getBoundingClientRect();
+      const w = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+
+      const dx = w.x - drag.startWorld.x;
+      const dy = w.y - drag.startWorld.y;
+
+      for(const bid of drag.ids){
+        const it = state.items.find(x => x.id === bid);
+        const sp = drag.startPos.get(bid);
+        if(!it || !sp) continue;
+        it.x = clamp(snap(sp.x + dx), 0, 7900);
+        it.y = clamp(snap(sp.y + dy), 0, 7900);
+        it.updatedAt = nowISO();
+
+        const el = bubblesRoot.querySelector(`[data-id="${CSS.escape(it.id)}"]`);
+        if(el){ el.style.left = it.x + "px"; el.style.top = it.y + "px"; }
+      }
+
+      markDirty();
+      renderConnectors();
+    });
+
+    window.addEventListener("mouseup", () => {
+      if(drag){
+        drag = null;
+        schedulePersistWorking();
+        renderList();
+      }
+    });
+
+    // ---------------------------------------------------------
+    // Resize
+    // ---------------------------------------------------------
+    let resize = null; // {id, startX, startY, startW, startH, scale}
+    function startResize(e, id){
+      const it = state.items.find(x => x.id === id);
+      if(!it) return;
+      const el = bubblesRoot.querySelector(`[data-id="${CSS.escape(id)}"]`);
+      if(!el) return;
+      const w0 = it.w || el.offsetWidth;
+      const h0 = it.h || el.offsetHeight;
+
+      pushUndo();
+      resize = { id, startX: e.clientX, startY: e.clientY, startW: w0, startH: h0, scale: view.scale };
+    }
+    window.addEventListener("mousemove", (e) => {
+      if(!resize) return;
+      const it = state.items.find(x => x.id === resize.id);
+      if(!it) return;
+      const dx = (e.clientX - resize.startX) / resize.scale;
+      const dy = (e.clientY - resize.startY) / resize.scale;
+      const w = clamp(Math.round(resize.startW + dx), 190, 720);
+      const h = clamp(Math.round(resize.startH + dy), 120, 520);
+      it.w = w;
+      it.h = h;
+      it.updatedAt = nowISO();
+
+      const el = bubblesRoot.querySelector(`[data-id="${CSS.escape(it.id)}"]`);
+      if(el){
+        el.style.width = w + "px";
+        el.style.height = h + "px";
+      }
+      markDirty();
+      renderConnectors();
+    });
+    window.addEventListener("mouseup", () => {
+      if(resize){
+        resize = null;
+        schedulePersistWorking();
+        renderList();
+      }
+    });
+
+    // ---------------------------------------------------------
+    // Swatches
+    // ---------------------------------------------------------
+    function renderSwatches(){
+      const canvasSwatches = $("canvasSwatches");
+      const bubbleSwatches = $("bubbleSwatches");
+      canvasSwatches.innerHTML = "";
+      bubbleSwatches.innerHTML = "";
+
+      for(const c of CANVAS_COLORS){
+        const d = document.createElement("div");
+        d.className = "swatch";
+        d.style.background = c;
+        d.title = "Canvas " + c;
+        d.addEventListener("click", () => {
+          pushUndo();
+          state.theme.canvasBg = c;
+          markDirty();
+          applyThemeToDOM();
+        });
+        canvasSwatches.appendChild(d);
+      }
+
+      for(const c of BUBBLE_COLORS){
+        const d = document.createElement("div");
+        d.className = "swatch";
+        d.style.background = c;
+        d.title = "Bubble " + c;
+        d.addEventListener("click", () => {
+          pushUndo();
+          if(selectedIds.size){
+            for(const id of selectedIds){
+              const it = state.items.find(x => x.id === id);
+              if(it) it.color = c;
+            }
+          } else {
+            state.theme.defaultBubbleColor = c;
+          }
+          markDirty();
+          renderAll();
+        });
+        bubbleSwatches.appendChild(d);
+      }
+    }
+
+    // ---------------------------------------------------------
+    // Types/Tags defs + managers
+    // ---------------------------------------------------------
+    function hydrateSelectors(){
+      const et = $("etype");
+      et.innerHTML = "";
+      const types = state.typeDefs.length ? state.typeDefs : ["note"];
+      for(const t of types){
+        const opt = document.createElement("option");
+        opt.value = t;
+        opt.textContent = t;
+        et.appendChild(opt);
+      }
+      if(!types.includes(et.value)) et.value = types[0] || "note";
+
+      const ft = $("filterType");
+      const prev = ft.value || "all";
+      ft.innerHTML = "";
+      const allOpt = document.createElement("option");
+      allOpt.value = "all";
+      allOpt.textContent = "All types";
+      ft.appendChild(allOpt);
+      for(const t of types){
+        const opt = document.createElement("option");
+        opt.value = t;
+        opt.textContent = t;
+        ft.appendChild(opt);
+      }
+      ft.value = (Array.from(ft.options).some(o=>o.value===prev) ? prev : "all");
+    }
+    function hydrateTagSuggestions(){
+      const dl = $("tagSuggestions");
+      dl.innerHTML = "";
+      const tags = (state.tagDefs || []).slice(0, 200).sort((a,b)=>a.localeCompare(b));
+      for(const t of tags){
+        const opt = document.createElement("option");
+        opt.value = t;
+        dl.appendChild(opt);
+      }
+    }
+
+    function harvestTagsFromItems(items){
+      const set = new Set();
+      for(const it of items){
+        for(const t of (it.tags||[])) set.add(t);
+      }
+      return Array.from(set);
+    }
+    function harvestTagsIntoDefs(force=false){
+      const found = harvestTagsFromItems(state.items);
+      const set = new Set(state.tagDefs);
+      for(const t of found) set.add(t);
+      const next = Array.from(set).filter(Boolean).slice(0, 200);
+      if(force || next.length !== state.tagDefs.length) state.tagDefs = next;
+    }
+
+    // Types manager dialog
+    const typesDlg = $("typesDlg");
+    $("btnManageTypes").addEventListener("click", () => { renderTypesManager(); typesDlg.showModal(); });
+    $("btnCloseTypes").addEventListener("click", () => typesDlg.close());
+    $("btnResetTypes").addEventListener("click", () => {
+      if(!confirmMaybe("Reset types to defaults?")) return;
+      pushUndo();
+      state.typeDefs = [...DEFAULT_TYPES];
+      if(!state.typeDefs.includes("note")) state.typeDefs.push("note");
+      markDirty();
+      hydrateSelectors();
+      renderTypesManager();
+      renderAll();
+    });
+    $("btnAddType").addEventListener("click", () => {
+      const v = ($("newTypeName").value || "").trim();
+      if(!v) return;
+      const name = v.toLowerCase().replace(/\s+/g, " ").slice(0, 32);
+      if(state.typeDefs.includes(name)){ alert("That type already exists."); return; }
+      pushUndo();
+      state.typeDefs.push(name);
+      markDirty();
+      $("newTypeName").value = "";
+      hydrateSelectors();
+      renderTypesManager();
+      renderAll();
+    });
+    function renderTypesManager(){
+      const wrap = $("typesList");
+      wrap.innerHTML = "";
+      const types = [...state.typeDefs];
+      for(const t of types){
+        const row = document.createElement("div");
+        row.className = "mgrRow";
+        row.innerHTML = `<input value="${escapeHtml(t)}" maxlength="32"/><button class="danger" type="button">Delete</button>`;
+        const inp = row.querySelector("input");
+        const del = row.querySelector("button");
+
+        inp.addEventListener("change", () => {
+          const nv = (inp.value || "").trim().toLowerCase().replace(/\s+/g, " ").slice(0, 32);
+          if(!nv){ inp.value = t; return; }
+          if(nv === t) return;
+          if(state.typeDefs.includes(nv)){ alert("That type already exists."); inp.value = t; return; }
+          pushUndo();
+          state.typeDefs = state.typeDefs.map(x => x === t ? nv : x);
+          for(const it of state.items){ if(it.type === t) it.type = nv; }
+          markDirty();
+          hydrateSelectors();
+          renderTypesManager();
+          renderAll();
+        });
+
+        del.addEventListener("click", () => {
+          if(t === "note"){ alert("Cannot delete 'note'."); return; }
+          if(!confirmMaybe(`Delete type "${t}"?`)) return;
+          pushUndo();
+          state.typeDefs = state.typeDefs.filter(x => x !== t);
+          for(const it of state.items){ if(it.type === t) it.type = "note"; }
+          markDirty();
+          hydrateSelectors();
+          renderTypesManager();
+          renderAll();
+        });
+
+        wrap.appendChild(row);
+      }
+    }
+
+    // Tags manager dialog
+    const tagsDlg = $("tagsDlg");
+    $("btnManageTags").addEventListener("click", () => { renderTagsManager(); tagsDlg.showModal(); });
+    $("btnCloseTags").addEventListener("click", () => tagsDlg.close());
+    $("btnAddTag").addEventListener("click", () => {
+      const v = ($("newTagName").value || "").trim();
+      if(!v) return;
+      const name = v.toLowerCase().replace(/\s+/g, "-").slice(0, 24);
+      if(state.tagDefs.includes(name)){ alert("That tag already exists."); return; }
+      pushUndo();
+      state.tagDefs.push(name);
+      markDirty();
+      $("newTagName").value = "";
+      hydrateTagSuggestions();
+      renderTagsManager();
+      renderAll();
+    });
+    $("btnHarvestTags").addEventListener("click", () => {
+      pushUndo();
+      harvestTagsIntoDefs(true);
+      markDirty();
+      hydrateTagSuggestions();
+      renderTagsManager();
+      renderAll();
+    });
+    function renderTagsManager(){
+      const wrap = $("tagsList");
+      wrap.innerHTML = "";
+      const tags = [...state.tagDefs].sort((a,b)=>a.localeCompare(b));
+      for(const t of tags){
+        const row = document.createElement("div");
+        row.className = "mgrRow";
+        row.innerHTML = `<input value="${escapeHtml(t)}" maxlength="24"/><button class="danger" type="button">Delete</button>`;
+        const inp = row.querySelector("input");
+        const del = row.querySelector("button");
+
+        inp.addEventListener("change", () => {
+          const nv = (inp.value || "").trim().toLowerCase().replace(/\s+/g, "-").slice(0, 24);
+          if(!nv){ inp.value = t; return; }
+          if(nv === t) return;
+          if(state.tagDefs.includes(nv)){ alert("That tag already exists."); inp.value = t; return; }
+          pushUndo();
+          state.tagDefs = state.tagDefs.map(x => x === t ? nv : x);
+          for(const it of state.items){ it.tags = (it.tags||[]).map(x => x === t ? nv : x); }
+          markDirty();
+          hydrateTagSuggestions();
+          renderTagsManager();
+          renderAll();
+        });
+
+        del.addEventListener("click", () => {
+          if(!confirmMaybe(`Delete tag "${t}"?`)) return;
+          pushUndo();
+          state.tagDefs = state.tagDefs.filter(x => x !== t);
+          for(const it of state.items){ it.tags = (it.tags||[]).filter(x => x !== t); }
+          markDirty();
+          hydrateTagSuggestions();
+          renderTagsManager();
+          renderAll();
+        });
+
+        wrap.appendChild(row);
+      }
+    }
+
+    // ---------------------------------------------------------
+    // Memory card dialog
+    // ---------------------------------------------------------
+    const memoryDlg = $("memoryDlg");
+    const slotGrid = $("slotGrid");
+    $("btnMemory").addEventListener("click", () => { renderSlots(); memoryDlg.showModal(); });
+    $("btnCloseMemory").addEventListener("click", () => memoryDlg.close());
+    $("btnWipeSlots").addEventListener("click", wipeAllSlots);
+
+    function renderSlots(){
+      slotGrid.innerHTML = "";
+      const current = card.currentSlot;
+
+      for(let i=1;i<=SLOT_COUNT;i++){
+        const slot = card.slots[i-1];
+        const el = document.createElement("div");
+        el.className = "slot" + (i === current ? " active" : "");
+
+        const has = !!slot.payload;
+        const savedAt = slot.savedAt ? String(slot.savedAt).slice(0,19).replace("T"," ") : "—";
+        const count = has ? (slot.payload?.state?.items?.length ?? 0) : 0;
+
+        el.innerHTML = `
+          <div class="slotTop">
+            <div class="slotNum">SLOT ${slotLabel(i)}</div>
+            <div class="badge">${has ? "Saved" : "Empty"}</div>
+          </div>
+
+          <div>
+            <input class="slotNameInput" value="${escapeHtml(slot.name || "")}"
+                   style="width:100%; border-radius: 12px; border: 1px solid rgba(15,23,42,0.16); padding:8px 10px; background: rgba(255,255,255,0.55); color: inherit; font-weight: 950;"
+                   maxlength="64" />
+            <div class="slotMeta">items: ${count} · saved: ${escapeHtml(savedAt)}</div>
+          </div>
+
+          <div class="slotBtns">
+            <button class="load" type="button"${has ? "" : " disabled"}>Load</button>
+            <button class="save" type="button">Save</button>
+            <button class="secondary" type="button">Use</button>
+            <button class="danger" type="button"${has ? "" : " disabled"}>Del</button>
+          </div>
+        `;
+
+        const nameInput = el.querySelector(".slotNameInput");
+        nameInput.addEventListener("keydown", (e) => {
+          if(e.key === "Enter"){
+            e.preventDefault();
+            const v = (nameInput.value || "").trim() || `Slot ${slotLabel(i)}`;
+            slot.name = v.slice(0,64);
+            persistCard();
+            renderSlots();
+          }
+        });
+
+        const [btnLoad, btnSave, btnUse, btnDel] = el.querySelectorAll("button");
+        btnUse.addEventListener("click", () => { setCurrentSlot(i); renderSlots(); });
+
+        btnSave.addEventListener("click", () => {
+          slot.name = (nameInput.value || slot.name || `Slot ${slotLabel(i)}`).trim().slice(0,64) || `Slot ${slotLabel(i)}`;
+          slot.payload = snapshot();
+          slot.savedAt = nowISO();
+          setCurrentSlot(i);
+          persistCard();
+          markSaved();
+          renderSlots();
+        });
+
+        btnLoad.addEventListener("click", () => {
+          try{
+            if(!slot.payload) return;
+            state = sanitizeState(slot.payload.state);
+            view = sanitizeView(slot.payload.view);
+            setCurrentSlot(i);
+            selectedIds.clear();
+            inlineEditId = null;
+            undoStack.length = 0;
+            applyThemeToDOM();
+            hydrateSelectors();
+            hydrateTagSuggestions();
+            renderAll();
+            markSaved();
+            persistWorking();
+            memoryDlg.close();
+          } catch(err) {
+            window.__borgInboxShowError(err, { source: "slot.load" });
+          }
+        });
+
+        btnDel.addEventListener("click", () => {
+          if(!confirmMaybe(`Delete slot ${slotLabel(i)}?`)) return;
+          slot.payload = null;
+          slot.savedAt = null;
+          persistCard();
+          renderSlots();
+        });
+
+        slotGrid.appendChild(el);
+      }
+    }
+
+    function wipeAllSlots(){
+      if(!confirmMaybe("Wipe ALL slots? (Working state stays.)")) return;
+      for(let i=0;i<card.slots.length;i++){ card.slots[i].payload = null; card.slots[i].savedAt = null; }
+      persistCard();
+      renderSlots();
+    }
+
+    function quickSaveToCurrentSlot(){
+      const i = card.currentSlot;
+      const slot = card.slots[i-1];
+      slot.payload = snapshot();
+      slot.savedAt = nowISO();
+      if(!slot.name) slot.name = `Slot ${slotLabel(i)}`;
+      persistCard();
+      markSaved();
+    }
+
+    // ---------------------------------------------------------
+    // Top buttons
+    // ---------------------------------------------------------
+    $("btnQuickSave").addEventListener("click", quickSaveToCurrentSlot);
+    $("btnUndo").addEventListener("click", undo);
+    $("btnCenter").addEventListener("click", fitToBubbles);
+    $("btnClear").addEventListener("click", () => {
+      if(!confirmMaybe("Clear ALL bubbles and links (working state)?")) return;
+      pushUndo();
+      state.items = [];
+      state.links = [];
+      selectedIds.clear();
+      inlineEditId = null;
+      markDirty();
+      renderAll();
+    });
+
+    // ---------------------------------------------------------
+    // Init
+    // ---------------------------------------------------------
+    function init(){
+      card = loadCard();
+
+      try {
+        const payload = card.working?.payload;
+        if(payload){ state = sanitizeState(payload.state); view = sanitizeView(payload.view); }
+        else { state = sanitizeState(null); view = sanitizeView(null); }
+      } catch(err) {
+        window.__borgInboxShowError(err, { source: "init.loadWorking" });
+        state = sanitizeState(null);
+        view = sanitizeView(null);
+      }
+
+      slotCode.textContent = slotLabel(card.currentSlot);
+      applyThemeToDOM();
+      hydrateSelectors();
+      harvestTagsIntoDefs(true);
+      hydrateTagSuggestions();
+      renderSwatches();
+      renderAll();
+      updateSavedBadge();
+      persistWorking();
+      $("etitle").focus();
+    }
+
+    window.addEventListener("beforeunload", () => { try{ persistWorking(); }catch{} });
+
+    init();
+  </script>
+</body>
+</html>
